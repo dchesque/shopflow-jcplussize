@@ -1,13 +1,12 @@
-# frontend/Dockerfile
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
 WORKDIR /app
 
 # Copia package files
-COPY package*.json ./
+COPY package.json ./
 
-# MUDE ESTA LINHA:
-RUN npm install  # Mudou de 'npm ci' para 'npm install'
+# Instala dependências (mudou de npm ci para npm install)
+RUN npm install
 
 # Copia código
 COPY . .
@@ -16,20 +15,15 @@ COPY . .
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY=$NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY
 
 # Build app
 RUN npm run build
-
-# Runner stage
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-# Copia arquivos necessários
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
