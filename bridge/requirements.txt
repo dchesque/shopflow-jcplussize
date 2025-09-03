@@ -1,0 +1,22 @@
+# Camera Bridge Requirements
+opencv-python==4.8.1.78
+numpy==1.24.3
+requests==2.31.0
+websocket-client==1.6.3
+python-dotenv==1.0.0
+schedule==1.2.0
+psutil==5.9.5
+Pillow==10.0.0
+ffmpeg-python==0.2.0
+
+# Logging and monitoring
+loguru==0.7.0
+prometheus-client==0.17.1
+
+# HTTP server for HLS streaming
+flask==2.3.3
+flask-cors==4.0.0
+
+# Optional: RTSP utilities
+imutils==0.5.4
+threading-timer==0.1.1

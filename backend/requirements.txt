@@ -1,0 +1,76 @@
+# FastAPI Backend Requirements
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database and Supabase
+supabase==2.3.0
+psycopg2-binary==2.9.7
+sqlalchemy==2.0.23
+
+# Computer Vision and AI
+ultralytics>=8.1.0  # Versão que suporta YOLO11
+opencv-python==4.8.1.78
+torch==2.1.0
+torchvision==0.16.0
+numpy==1.24.3
+Pillow==10.0.0
+
+# Face Recognition (Privacy-First)
+deepface==0.0.79
+tensorflow==2.13.0
+mtcnn==0.1.1
+insightface==0.7.3
+
+# Machine Learning and Clustering
+scikit-learn==1.3.2
+scipy==1.11.4
+pandas==2.1.4
+
+# Object Tracking
+deep-sort-realtime==1.3.0
+filterpy==1.4.5
+
+# HTTP and WebSocket
+httpx==0.25.2
+websockets==12.0
+python-socketio==5.10.0
+
+# Utilities
+loguru==0.7.0
+schedule==1.2.0
+redis==5.0.1
+celery==5.3.4
+
+# Monitoring and metrics
+prometheus-client==0.17.1
+psutil==5.9.5
+
+# Image processing
+opencv-contrib-python==4.8.1.78
+scikit-image==0.22.0
+
+# API Documentation
+fastapi-users==12.1.2
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# File handling
+aiofiles==23.2.1
+python-magic==0.4.27
+
+# Privacy and Security
+cryptography==41.0.7
+hashlib-compat==1.0.1
+
+# Mathematical operations
+numba==0.58.1
+joblib==1.3.2
+
+# Testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
