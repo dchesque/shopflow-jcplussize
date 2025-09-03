@@ -1,0 +1,347 @@
+name: 🚀 Deploy ShopFlow to Easypanel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Deploy Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+
+jobs:
+  # Testes e validações
+  test-and-validate:
+    runs-on: ubuntu-latest
+    outputs:
+      backend-changed: ${{ steps.changes.outputs.backend }}
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      bridge-changed: ${{ steps.changes.outputs.bridge }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: 🔍 Detect changes
+      uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          backend:
+            - 'backend/**'
+          frontend:
+            - 'frontend/**'
+          bridge:
+            - 'bridge/**'
+
+    - name: 🐍 Setup Python
+      if: steps.changes.outputs.backend == 'true'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📦 Cache Python dependencies
+      if: steps.changes.outputs.backend == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        
+    - name: 🔧 Install Python dependencies
+      if: steps.changes.outputs.backend == 'true'
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        
+    - name: 🧪 Validate backend code
+      if: steps.changes.outputs.backend == 'true'
+      run: |
+        cd backend
+        python -m py_compile main.py
+        python -c "import main; print('✅ Backend validation OK')"
+        
+    - name: 🟢 Setup Node.js
+      if: steps.changes.outputs.frontend == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: 📦 Install frontend dependencies
+      if: steps.changes.outputs.frontend == 'true'
+      run: |
+        cd frontend
+        npm ci
+        
+    - name: 🔍 Frontend lint and type check
+      if: steps.changes.outputs.frontend == 'true'
+      run: |
+        cd frontend
+        npm run lint
+        npm run type-check
+        
+    - name: 🏗️ Test frontend build
+      if: steps.changes.outputs.frontend == 'true'
+      run: |
+        cd frontend
+        npm run build
+
+  # Build e push das imagens Docker
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test-and-validate
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔐 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 🏗️ Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🏷️ Extract metadata for Backend
+      if: needs.test-and-validate.outputs.backend-changed == 'true'
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value={{date 'YYYY-MM-DD-HHmmss'}}
+
+    - name: 🏷️ Extract metadata for Frontend
+      if: needs.test-and-validate.outputs.frontend-changed == 'true'
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value={{date 'YYYY-MM-DD-HHmmss'}}
+
+    - name: 🐳 Build and push Backend image
+      if: needs.test-and-validate.outputs.backend-changed == 'true'
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha,scope=backend
+        cache-to: type=gha,mode=max,scope=backend
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+
+    - name: 🌐 Build and push Frontend image
+      if: needs.test-and-validate.outputs.frontend-changed == 'true'
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha,scope=frontend
+        cache-to: type=gha,mode=max,scope=frontend
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+
+  # Deploy para Easypanel
+  deploy-to-easypanel:
+    runs-on: ubuntu-latest
+    needs: [test-and-validate, build-and-push]
+    if: github.ref == 'refs/heads/main' && (needs.test-and-validate.outputs.backend-changed == 'true' || needs.test-and-validate.outputs.frontend-changed == 'true')
+    
+    steps:
+    - name: 🚀 Trigger Easypanel Deploy - Backend
+      if: needs.test-and-validate.outputs.backend-changed == 'true'
+      run: |
+        curl -X POST "${{ secrets.EASYPANEL_BACKEND_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "service": "shopflow-backend",
+            "action": "deploy",
+            "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+          }'
+
+    - name: 🌐 Trigger Easypanel Deploy - Frontend
+      if: needs.test-and-validate.outputs.frontend-changed == 'true'
+      run: |
+        curl -X POST "${{ secrets.EASYPANEL_FRONTEND_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "service": "shopflow-frontend",
+            "action": "deploy",
+            "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+          }'
+
+    - name: ⏳ Wait for deployment
+      run: sleep 30
+
+    - name: 🔍 Verify Backend deployment
+      if: needs.test-and-validate.outputs.backend-changed == 'true'
+      run: |
+        for i in {1..10}; do
+          if curl -sf "${{ secrets.BACKEND_HEALTH_URL }}/api/health" > /dev/null; then
+            echo "✅ Backend health check OK"
+            break
+          fi
+          echo "⏳ Waiting for backend... ($i/10)"
+          sleep 15
+        done
+
+    - name: 🔍 Verify Frontend deployment  
+      if: needs.test-and-validate.outputs.frontend-changed == 'true'
+      run: |
+        for i in {1..10}; do
+          if curl -sf "${{ secrets.FRONTEND_HEALTH_URL }}" > /dev/null; then
+            echo "✅ Frontend health check OK"
+            break
+          fi
+          echo "⏳ Waiting for frontend... ($i/10)"
+          sleep 15
+        done
+
+  # Notificações
+  notify:
+    runs-on: ubuntu-latest
+    needs: [test-and-validate, build-and-push, deploy-to-easypanel]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📊 Generate deployment summary
+      id: summary
+      run: |
+        STATUS="unknown"
+        if [[ "${{ needs.deploy-to-easypanel.result }}" == "success" ]]; then
+          STATUS="success"
+        elif [[ "${{ needs.deploy-to-easypanel.result }}" == "failure" ]]; then
+          STATUS="failed"
+        elif [[ "${{ needs.deploy-to-easypanel.result }}" == "skipped" ]]; then
+          STATUS="skipped"
+        fi
+        
+        echo "status=$STATUS" >> $GITHUB_OUTPUT
+        echo "backend_changed=${{ needs.test-and-validate.outputs.backend-changed }}" >> $GITHUB_OUTPUT
+        echo "frontend_changed=${{ needs.test-and-validate.outputs.frontend-changed }}" >> $GITHUB_OUTPUT
+
+    - name: 📢 Slack Notification - Success
+      if: steps.summary.outputs.status == 'success'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: |
+          🎉 ShopFlow deployment successful!
+          
+          📝 Commit: ${{ github.event.head_commit.message }}
+          🔗 Author: ${{ github.actor }}
+          🌿 Branch: ${{ github.ref_name }}
+          
+          Services deployed:
+          ${{ steps.summary.outputs.backend_changed == 'true' && '🐳 Backend' || '' }}
+          ${{ steps.summary.outputs.frontend_changed == 'true' && '🌐 Frontend' || '' }}
+          
+          🔗 Live: https://shopflow.jcplussize.com.br
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: 📢 Slack Notification - Failure  
+      if: steps.summary.outputs.status == 'failed'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: |
+          ❌ ShopFlow deployment failed!
+          
+          📝 Commit: ${{ github.event.head_commit.message }}
+          🔗 Author: ${{ github.actor }}
+          🌿 Branch: ${{ github.ref_name }}
+          
+          🚨 Check GitHub Actions logs for details
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: 📢 Slack Notification - No Changes
+      if: steps.summary.outputs.status == 'skipped'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "ℹ️ ShopFlow: No services needed deployment",
+            "attachments": [{
+              "color": "warning",
+              "fields": [{
+                "title": "Commit",
+                "value": "${{ github.event.head_commit.message }}",
+                "short": true
+              }, {
+                "title": "Author", 
+                "value": "${{ github.actor }}",
+                "short": true
+              }]
+            }]
+          }
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Relatório final
+  report:
+    runs-on: ubuntu-latest
+    needs: [test-and-validate, build-and-push, deploy-to-easypanel]
+    if: always()
+    
+    steps:
+    - name: 📊 Deployment Report
+      run: |
+        echo "# 🚀 ShopFlow Deployment Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Services Status" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend: ${{ needs.test-and-validate.outputs.backend-changed == 'true' && '✅ Deployed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Frontend: ${{ needs.test-and-validate.outputs.frontend-changed == 'true' && '✅ Deployed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Links" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 [Frontend](https://shopflow.jcplussize.com.br)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔧 [API Docs](https://api.shopflow.jcplussize.com.br/docs)" >> $GITHUB_STEP_SUMMARY
+        echo "- 📊 [API Health](https://api.shopflow.jcplussize.com.br/api/health)" >> $GITHUB_STEP_SUMMARY

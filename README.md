@@ -6,10 +6,12 @@ Sistema avançado de análise de tráfego de pessoas com IA integrada, reconheci
 
 ### 🎯 Core Features
 - ✅ **Contagem de Pessoas em Tempo Real** - YOLO11 + Deep Sort
+- ✅ **Câmera RTSP Intelbras Mibo** - Captura via bridge dedicada
 - ✅ **WebSocket Live Stream** - Atualizações instantâneas
 - ✅ **Dashboard Interativo** - Métricas e gráficos em tempo real
 - ✅ **Supabase Database** - PostgreSQL com realtime subscriptions
 - ✅ **API REST Completa** - FastAPI com documentação automática
+- ✅ **Deploy Easypanel** - Containerização completa com CI/CD
 
 ### 🧠 Smart Analytics (IA)
 - 🎭 **Reconhecimento Facial LGPD-Compliant** - Identifica funcionários sem armazenar fotos
@@ -56,12 +58,17 @@ Sistema avançado de análise de tráfego de pessoas com IA integrada, reconheci
 
 ### 1. Clone e Configure
 ```bash
-git clone https://github.com/seu-usuario/shopflow-jcplussize.git
+git clone https://github.com/dchesque/shopflow-jcplussize.git
 cd shopflow-jcplussize
 
 # Configurar ambiente
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
+
+# Bridge PC da loja
+cd bridge
+copy config.ini.example config.ini
+# Editar config.ini com senha real da câmera
 ```
 
 ### 2. Docker Compose (Recomendado)
@@ -87,6 +94,41 @@ python main.py
 cd frontend
 npm install
 npm run dev
+```
+
+### 3. Bridge da Câmera (PC da Loja)
+```cmd
+# Windows - PC da loja
+cd bridge
+install_windows.bat
+
+# Editar config.ini com dados reais
+# [camera]
+# username = admin  
+# password = SUA_SENHA_AQUI
+
+# Iniciar bridge
+run_bridge.bat
+```
+
+## 🎥 Configuração da Câmera RTSP
+
+### Intelbras Mibo - 192.168.1.52
+- **IP**: `192.168.1.52`
+- **RTSP Principal**: `rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=0`
+- **RTSP Fallback**: `rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=1`
+- **Porta**: `554`
+- **Usuário**: `admin`
+- **Resolução**: 1920x1080 (configurável)
+
+### Teste de Conectividade
+```bash
+# Teste manual RTSP
+ffplay rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=0
+
+# Teste API bridge
+curl -X POST https://api.shopflow.jcplussize.com.br/api/camera/test \
+  -H "Authorization: Bearer bridge_prod_key_2024"
 ```
 
 ## 📊 Métricas Inteligentes
@@ -144,24 +186,39 @@ POST /api/privacy/data-deletion
 
 ## 🐳 Deploy para Easypanel
 
-### 1. Configurar Repository
+### 1. Configurar Secrets no GitHub
 ```bash
-# Adicionar secrets no GitHub:
-# - EASYPANEL_WEBHOOK_URL
-# - SLACK_WEBHOOK_URL (opcional)
+# Repository Settings > Secrets and Variables > Actions
+EASYPANEL_BACKEND_WEBHOOK=https://panel.easypanel.io/webhooks/...
+EASYPANEL_FRONTEND_WEBHOOK=https://panel.easypanel.io/webhooks/...
+
+NEXT_PUBLIC_SUPABASE_URL=https://supabase.shopflow.jcplussize.com.br
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_API_URL=https://api.shopflow.jcplussize.com.br
+
+BACKEND_HEALTH_URL=https://api.shopflow.jcplussize.com.br
+FRONTEND_HEALTH_URL=https://shopflow.jcplussize.com.br
+
+SLACK_WEBHOOK_URL=https://hooks.slack.com/... (opcional)
 ```
 
-### 2. Push para Main
+### 2. Deploy Automático
 ```bash
+# Qualquer push na main dispara deploy
 git add .
-git commit -m "Deploy to Easypanel"
+git commit -m "🚀 Deploy with camera bridge ready"
 git push origin main
 ```
 
-### 3. Monitorar Deploy
-- GitHub Actions irá buildar as imagens
-- Deploy automático via webhook
-- Notificações no Slack
+### 3. Monitoramento
+- ✅ GitHub Actions CI/CD automático
+- ✅ Build multi-arch (AMD64/ARM64)
+- ✅ Deploy incremental (só o que mudou)
+- ✅ Health checks automáticos
+- ✅ Notificações Slack
+- ✅ Rollback automático em falha
+
+📋 **[Guia Completo de Deploy](./DEPLOY_EASYPANEL.md)**
 
 ## 📁 Estrutura do Projeto
 

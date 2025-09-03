@@ -120,6 +120,10 @@ app.add_middleware(
 # Servir arquivos estáticos (snapshots)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
+# Incluir rotas da API de câmera
+from api.routes.camera import router as camera_router
+app.include_router(camera_router)
+
 # ============================================================================
 # ENDPOINTS DE BRIDGE (Recepção de frames da câmera)
 # ============================================================================

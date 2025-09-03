@@ -1,0 +1,20 @@
+[camera]
+# Câmera Intelbras Mibo RTSP URLs
+rtsp_url = rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=0
+rtsp_fallback = rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=1
+username = admin
+password = COLOQUE_SUA_SENHA_AQUI
+
+[server]
+# Desenvolvimento local (descomente para testar)
+# api_url = http://localhost:8001
+# api_key = development
+
+# Produção (padrão)
+api_url = https://api.shopflow.jcplussize.com.br
+api_key = bridge_prod_key_2024
+
+[settings]
+fps = 15
+quality = high
+reconnect_timeout = 10

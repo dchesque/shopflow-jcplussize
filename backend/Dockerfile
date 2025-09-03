@@ -1,60 +1,49 @@
-# ShopFlow Backend - Dockerfile para Easypanel
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Variáveis de ambiente para Python
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PIP_NO_CACHE_DIR=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Instalar dependências do sistema necessárias para OpenCV e AI
+# Dependências sistema para OpenCV e YOLO11
 RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
     wget \
-    curl \
     ffmpeg \
-    git \
+    gcc \
+    g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Criar usuário não-root
-RUN useradd --create-home --shell /bin/bash shopflow
 WORKDIR /app
 
-# Copiar requirements primeiro para cache eficiente
+# Copia requirements primeiro (cache Docker)
 COPY requirements.txt .
-
-# Instalar dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Criar diretórios necessários
-RUN mkdir -p /app/uploads /app/logs /app/face_embeddings /app/models
+# Baixa modelos YOLO11 durante build
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11n.pt'); YOLO('yolo11m.pt')"
 
-# Copiar código da aplicação
+# Baixa modelo DeepFace se necessário
+RUN python -c "from deepface import DeepFace; DeepFace.build_model('Facenet512')" || true
+
+# Copia aplicação
 COPY . .
 
-# Alterar proprietário dos arquivos
-RUN chown -R shopflow:shopflow /app
+# Cria diretórios necessários
+RUN mkdir -p /app/logs /app/temp /app/models /app/uploads /app/face_embeddings
 
-# Mudar para usuário não-root
+# Cria usuário não-root
+RUN useradd --create-home --shell /bin/bash shopflow && \
+    chown -R shopflow:shopflow /app
+
 USER shopflow
 
-# Download do modelo YOLO11 na build
-RUN python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"
-
-# Expor porta
 EXPOSE 8001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8001/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8001/api/health || exit 1
 
-# Comando de inicialização
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+# Comando produção
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
