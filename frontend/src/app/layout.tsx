@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/components/providers/providers";
+import { Providers } from "../components/providers/Providers";
+
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
