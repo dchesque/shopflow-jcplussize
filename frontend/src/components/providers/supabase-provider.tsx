@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { createBrowserClient, SupabaseClient } from "@supabase/ssr";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type SupabaseContext = {
   supabase: SupabaseClient;
