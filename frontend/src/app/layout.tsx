@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Providers } from "../components/providers/Providers";
+import { Providers } from "../components/providers/providers";
 
 import { Toaster } from "react-hot-toast";
 
