@@ -43,6 +43,8 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copiar apenas os arquivos necessários do standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copiar public se existir
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Mudar para usuário não-root
