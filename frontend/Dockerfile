@@ -3,18 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copiar arquivos de configuração
+# Copiar package files primeiro para cache layers
 COPY package*.json ./
-COPY postcss.config.js ./
-COPY tailwind.config.ts ./
-COPY next.config.js ./
-COPY tsconfig.json ./
 
 # Instalar dependências (incluindo devDependencies para build)
 RUN npm ci --frozen-lockfile && \
     npm cache clean --force
 
-# Copiar código fonte
+# Copiar todo o código fonte (incluindo arquivos de config)
 COPY . .
 
 # Build variables (com valores default para EasyPanel)
