@@ -163,7 +163,17 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
-      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)"
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\ui/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\layout/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\providers/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\app\\analytics/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\providers/**)"
     ],
     "deny": [],
     "ask": []

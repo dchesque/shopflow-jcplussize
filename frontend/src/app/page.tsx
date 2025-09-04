@@ -3,7 +3,7 @@
 import React from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { MetricCard } from "@/components/ui/metric-card";
-import { useWebSocket } from "@/components/providers/websocket-provider";
+// import { useWebSocket } from "@/components/providers/websocket-provider";
 import {
   Users,
   UserPlus,
@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const { metrics, isConnected } = useWebSocket();
+  // const { metrics, isConnected } = useWebSocket();
+  const metrics = null;
+  const isConnected = false;
 
   // Dados de exemplo para demonstração
   const mockMetrics = {
