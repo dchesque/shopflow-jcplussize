@@ -1,24 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuração para deployment standalone (Docker)
-  output: 'standalone',
-  
   // Otimizações de performance
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
   
-  // Configuração de imagens para Docker
+  // Configuração de imagens
   images: {
-    unoptimized: true
+    unoptimized: true,
+    domains: ['localhost', 'supabase.co'],
   },
   
-  // Configuração para Easypanel/Docker
+  // MOVIDO DE experimental PARA AQUI
+  serverExternalPackages: ['@supabase/supabase-js'],
+  
+  // Configuração para proxy do backend
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/:path*`
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://backend:8001'}/api/:path*`
       }
     ]
   },
@@ -40,16 +41,25 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
           }
         ],
       },
     ]
   },
   
-  // Configuração experimental
-  experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js']
-  }
+  // Configuração de variáveis de ambiente
+  env: {
+    NEXT_PUBLIC_APP_VERSION: '2.0.0',
+  },
+  
+  // Desabilitar telemetria do Next.js
+  telemetry: {
+    disabled: true,
+  },
 }
 
 module.exports = nextConfig
