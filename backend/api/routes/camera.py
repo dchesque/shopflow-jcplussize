@@ -14,9 +14,9 @@ import asyncio
 from loguru import logger
 
 # Imports internos (assumindo a estrutura existente)
-from ...core.detector import YOLOPersonDetector
-from ...core.ai.smart_analytics_engine import SmartAnalyticsEngine
-from ...core.database import SupabaseManager
+from core.detector import YOLOPersonDetector
+# from core.ai.smart_analytics_engine import SmartAnalyticsEngine
+from core.database import SupabaseManager
 
 router = APIRouter(prefix="/api/camera", tags=["camera"])
 security = HTTPBearer()

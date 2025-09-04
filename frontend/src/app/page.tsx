@@ -34,7 +34,7 @@ export default function HomePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 bg-blue-900 min-h-screen text-white">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

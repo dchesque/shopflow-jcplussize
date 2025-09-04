@@ -141,7 +141,7 @@ class GroupDetector:
         
         logger.info("Group Detector inicializado")
     
-    def detect_groups(self, people_in_frame: List[Person]) -> List[Group]:
+    async def detect_groups(self, people_in_frame: List[Person]) -> List[Group]:
         """
         Detecta grupos de pessoas próximas
         
@@ -179,7 +179,7 @@ class GroupDetector:
                     detected_groups.append(group)
         
         # Atualizar grupos existentes
-        await self._update_existing_groups(detected_groups)
+        self._update_existing_groups(detected_groups)
         
         return detected_groups
     

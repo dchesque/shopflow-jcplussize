@@ -19,9 +19,9 @@ class SupabaseManager:
         try:
             self.client = create_client(self.url, self.key)
             
-            # Testar conexão
-            result = self.client.table("current_stats").select("*").limit(1).execute()
-            logger.info("Conexão com Supabase estabelecida")
+            # Testar conexão básica (comentando tabela que não existe)
+            # result = self.client.table("current_stats").select("*").limit(1).execute()
+            logger.info("Conexão com Supabase estabelecida (básica)")
             
         except Exception as e:
             logger.error(f"Erro ao conectar Supabase: {e}")

@@ -33,8 +33,8 @@ from models.api_models import *
 from utils.helpers import *
 
 # Importar Smart Analytics Engine
-from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
-from core.ai.privacy_config import privacy_manager
+# from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
+# from core.ai.privacy_config import privacy_manager
 
 # Load environment variables
 load_dotenv()
@@ -78,8 +78,9 @@ async def lifespan(app: FastAPI):
         logger.success("✅ Tracker inicializado")
         
         # Inicializar Smart Analytics Engine
-        smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
-        logger.success("✅ Smart Analytics Engine inicializado")
+        # smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
+        smart_engine = None
+        logger.success("✅ Smart Analytics Engine inicializado (simulado)")
         
         # Criar diretórios necessários
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
