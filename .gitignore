@@ -1,0 +1,290 @@
+# ============================================================================
+# ShopFlow - .gitignore
+# Protege chaves sensíveis, cache, logs e arquivos temporários
+# ============================================================================
+
+# ============================================================================
+# 🔑 ARQUIVOS SENSÍVEIS - NUNCA COMMITAR
+# ============================================================================
+# Environment variables com chaves reais
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Arquivos específicos por diretório
+backend/.env
+backend/.env.local
+backend/.env.production
+backend/.env.staging
+frontend/.env.local
+frontend/.env.production
+frontend/.env.staging
+bridge/.env
+bridge/config.ini
+
+# Chaves e certificados
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Arquivos de configuração com dados sensíveis
+*config.json
+*secrets.json
+*credentials.json
+
+# ============================================================================
+# 📁 NODE.JS / NPM
+# ============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Vercel
+.vercel
+
+# ============================================================================
+# 🐍 PYTHON
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# ============================================================================
+# 🗄️ DATABASE & CACHE
+# ============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Redis dumps
+dump.rdb
+
+# ============================================================================
+# 📸 UPLOADS & MEDIA
+# ============================================================================
+# Uploads directory (pode conter dados sensíveis)
+uploads/
+media/
+temp/
+tmp/
+
+# Snapshots da câmera
+snapshots/
+captures/
+frames/
+
+# Arquivos de face embeddings (dados biométricos)
+face_embeddings/
+embeddings/
+**/face_embeddings/
+**/embeddings/
+
+# YOLO models (muito grandes)
+*.pt
+*.weights
+*.onnx
+models/*.pt
+models/*.weights
+
+# ============================================================================
+# 📝 LOGS & MONITORING
+# ============================================================================
+logs/
+*.log
+*.log.*
+log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Prometheus metrics
+metrics/
+
+# ============================================================================
+# 🐳 DOCKER & CONTAINERIZAÇÃO
+# ============================================================================
+# Ignorar volumes locais do Docker
+docker-volumes/
+.docker/
+
+# ============================================================================
+# ☁️ CLOUD & DEPLOY
+# ============================================================================
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# AWS
+.aws/
+
+# ============================================================================
+# 💻 OS & EDITOR FILES
+# ============================================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Linux
+*~
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+*~
+.#*
+#*#
+
+# ============================================================================
+# 🧪 TESTING & COVERAGE
+# ============================================================================
+coverage/
+.nyc_output
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# ============================================================================
+# 📦 PACKAGE MANAGERS
+# ============================================================================
+# Poetry
+poetry.lock
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================================================
+# 🔧 BUILD & TEMPORARY FILES
+# ============================================================================
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+*.swp
+*.swo
+
+# Backup files
+*.backup
+*~
+
+# ============================================================================
+# 📊 ANALYTICS & TELEMETRY
+# ============================================================================
+.sentryclirc
+
+# ============================================================================
+# 🚫 CUSTOM IGNORES - ShopFlow específicos
+# ============================================================================
+# Bridge executáveis Windows
+bridge/*.exe
+bridge/*.bat.backup
+
+# Arquivos de teste locais
+test_*.py
+test_*.js
+*_test_local.*
+
+# Dumps de dados temporários
+data_dump/
+db_backup/
+
+# ============================================================================
+# ✅ ARQUIVOS PERMITIDOS (force add se necessário)
+# ============================================================================
+# Sempre incluir exemplos (sem chaves reais)
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!bridge/config.ini.example
+
+# Dockerfiles de exemplo
+!Dockerfile*
+!docker-compose*.yml
+
+# Documentação
+!README.md
+!*.md
+
+# Arquivos de configuração seguros
+!package.json
+!requirements.txt
+!pyproject.toml
+!next.config.js
+!tailwind.config.ts
