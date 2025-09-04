@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Configuração para standalone output (Docker)
+  output: 'standalone',
+  
   // Otimizações de performance
   compress: true,
   poweredByHeader: false,
@@ -54,11 +57,6 @@ const nextConfig = {
   // Configuração de variáveis de ambiente
   env: {
     NEXT_PUBLIC_APP_VERSION: '2.0.0',
-  },
-  
-  // Desabilitar telemetria do Next.js
-  telemetry: {
-    disabled: true,
   },
 }
 

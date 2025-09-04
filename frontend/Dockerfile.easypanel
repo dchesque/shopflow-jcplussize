@@ -7,8 +7,8 @@ WORKDIR /app
 # Copiar package files
 COPY package*.json ./
 
-# Instalar dependências de produção
-RUN npm ci --omit=dev && \
+# Instalar todas as dependências (incluindo dev para o build)
+RUN npm ci && \
     npm cache clean --force
 
 # Copiar código fonte
@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build da aplicação
+# Build da aplicação com standalone output
 RUN npm run build
 
 # Production stage
@@ -40,11 +40,10 @@ RUN apk add --no-cache dumb-init curl
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copiar arquivos necessários
-COPY --from=builder --chown=nextjs:nodejs /app/package*.json ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copiar apenas os arquivos necessários do standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Mudar para usuário não-root
 USER nextjs
@@ -66,4 +65,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Comando para iniciar
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
