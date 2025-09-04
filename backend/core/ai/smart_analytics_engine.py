@@ -1,604 +1,410 @@
 """
-🧠 SMART ANALYTICS ENGINE - Integração Completa
-Motor de análise inteligente que combina todos os módulos de IA
+Smart Analytics Engine - Cérebro do ShopFlow
+Integra todas as funcionalidades de IA avançada
 """
 
-import asyncio
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Any, Tuple
+import numpy as np
+import cv2
+from datetime import datetime, timedelta
+import asyncio
 import json
 from loguru import logger
+import hashlib
+from enum import Enum
 
-# Importar todos os módulos de IA
-from .face_recognition.privacy_first_face_registry import PrivacyFirstFaceRegistry, IdentificationResult
-from .temporal_analysis.purchase_analyzer import TemporalPurchaseAnalyzer, CustomerJourney
-from .behavior_reid.behavior_signature import BehaviorReID, BehaviorSignature
-from .group_detection.group_analyzer import GroupDetector, Group, Person, AgeGroup
+# Importar módulos de IA
+from .face_recognition import FaceRecognitionManager
+from .behavior_analyzer import BehaviorAnalyzer
+from .customer_segmentation import CustomerSegmentation
+from .predictive_insights import PredictiveEngine
+from .privacy_config import PrivacyManager
 
-@dataclass
-class SmartDetection:
-    """Detecção inteligente combinada"""
-    person_id: str
-    timestamp: datetime
-    position: Tuple[float, float]
-    confidence: float
-    
-    # Identificação facial
-    identity: Optional[IdentificationResult] = None
-    
-    # Análise comportamental
-    behavior_match: Optional[Dict[str, Any]] = None
-    customer_type: Optional[str] = None
-    
-    # Análise de grupo
-    group_id: Optional[str] = None
-    group_role: Optional[str] = None
-    
-    # Análise temporal
-    journey_state: Optional[str] = None
-    purchase_probability: float = 0.0
-    
-    # Metadados
-    is_employee: bool = False
-    is_returning_customer: bool = False
-    estimated_age_group: Optional[str] = None
+class PersonType(Enum):
+    CUSTOMER = "customer"
+    EMPLOYEE = "employee"
+    UNKNOWN = "unknown"
 
 @dataclass
 class SmartMetrics:
-    """Métricas inteligentes combinadas"""
-    # Contagem inteligente
-    total_visitors: int = 0
-    real_customers: int = 0  # Exclui funcionários
-    employees_detected: int = 0
-    groups_count: int = 0
+    """Métricas inteligentes geradas pela IA"""
+    # Contagem básica
+    total_people: int
+    customers: int
+    employees: int
     
-    # Análise de grupos
-    groups: Dict[str, int] = None
+    # Análise comportamental
+    avg_dwell_time: float  # Tempo médio na loja (minutos)
+    hot_zones: List[Dict[str, float]]  # Zonas mais visitadas
+    customer_flow_pattern: str  # Padrão de fluxo (ex: "morning_rush")
     
-    # Comportamento
-    customer_types: Dict[str, int] = None
+    # Segmentação
+    customer_segments: Dict[str, int]  # Ex: {"regular": 5, "new": 3, "vip": 1}
+    group_shopping_rate: float  # Taxa de compras em grupo
     
-    # Temporal
-    purchases: Dict[str, Any] = None
+    # Predições
+    next_hour_prediction: int  # Previsão de visitantes próxima hora
+    conversion_probability: float  # Probabilidade de conversão atual
+    optimal_staff_needed: int  # Funcionários ideais para o momento
     
-    # Re-identificação
-    returning_customers: Dict[str, Any] = None
+    # Insights
+    anomalies_detected: List[str]  # Comportamentos anômalos
+    recommendations: List[str]  # Recomendações em tempo real
     
-    def __post_init__(self):
-        if self.groups is None:
-            self.groups = {
-                'families': 0,
-                'couples': 0,
-                'friends': 0,
-                'average_size': 0.0
-            }
-        
-        if self.customer_types is None:
-            self.customer_types = {
-                'objective': 0,
-                'explorer': 0,
-                'economic': 0,
-                'casual': 0
-            }
-        
-        if self.purchases is None:
-            self.purchases = {
-                'confirmed_by_behavior': 0,
-                'avg_time_to_purchase': '00:00:00',
-                'conversion_rate': 0.0
-            }
-        
-        if self.returning_customers is None:
-            self.returning_customers = {
-                'count': 0,
-                'percentage': 0.0,
-                'avg_visits_per_customer': 0.0
-            }
+    # Metadata
+    timestamp: datetime
+    confidence_score: float
 
 class SmartAnalyticsEngine:
     """
-    Motor principal que combina todos os módulos de IA para análise inteligente
+    Motor principal de IA do ShopFlow
+    Coordena todos os módulos de inteligência artificial
     """
     
     def __init__(self, enable_face_recognition: bool = True):
-        # Inicializar módulos de IA
-        self.face_registry = PrivacyFirstFaceRegistry() if enable_face_recognition else None
-        self.purchase_analyzer = TemporalPurchaseAnalyzer()
-        self.behavior_reid = BehaviorReID()
-        self.group_detector = GroupDetector()
+        self.enabled = True
+        self.enable_face_recognition = enable_face_recognition
         
-        # Estado interno
-        self.current_detections: Dict[str, SmartDetection] = {}
-        self.active_people: Dict[str, Person] = {}
-        self.processing_queue = asyncio.Queue()
+        # Inicializar módulos
+        self.face_manager = None
+        self.behavior_analyzer = None
+        self.segmentation = None
+        self.predictive = None
+        self.privacy = None
         
-        # Configurações
-        self.face_recognition_enabled = enable_face_recognition and (self.face_registry is not None)
-        self.min_track_length = 5  # Mínimo de pontos para análise comportamental
+        # Cache e estado
+        self.person_registry = {}  # ID -> PersonData
+        self.employee_faces = {}  # employee_id -> face_encoding
+        self.last_metrics = None
         
-        # Cache para otimização
-        self._metrics_cache = None
-        self._cache_expiry = datetime.now()
-        self._cache_duration = timedelta(seconds=2)
-        
-        logger.info(f"Smart Analytics Engine inicializado (Face Recognition: {self.face_recognition_enabled})")
+        logger.info("🧠 Smart Analytics Engine inicializado")
     
-    async def process_frame_detections(self, detections: List[Dict[str, Any]], frame: np.ndarray = None) -> List[SmartDetection]:
-        """
-        Processa detecções de um frame através de todos os módulos de IA
-        
-        Args:
-            detections: Lista de detecções do YOLOv8
-            frame: Frame original (opcional, para reconhecimento facial)
-            
-        Returns:
-            Lista de detecções inteligentes processadas
-        """
+    async def initialize(self):
+        """Inicializar todos os módulos de IA"""
         try:
-            smart_detections = []
-            people_in_frame = []
+            # Face Recognition
+            if self.enable_face_recognition:
+                self.face_manager = FaceRecognitionManager()
+                await self.face_manager.initialize()
+                await self.face_manager.load_employee_faces()
             
-            for detection in detections:
-                # Extrair informações básicas
-                person_id = detection.get('tracking_id', f"person_{len(smart_detections)}")
-                position = detection.get('center', (0, 0))
-                confidence = detection.get('confidence', 0.0)
-                bbox = detection.get('bbox', [0, 0, 100, 100])
-                
-                # Criar detecção inteligente base
-                smart_detection = SmartDetection(
-                    person_id=person_id,
-                    timestamp=datetime.now(),
-                    position=position,
-                    confidence=confidence
-                )
-                
-                # Criar objeto Person para análise de grupo
-                height_estimate = bbox[3] - bbox[1] if len(bbox) >= 4 else 100
-                width_estimate = bbox[2] - bbox[0] if len(bbox) >= 4 else 50
-                
-                person = Person(
-                    person_id=person_id,
-                    position=position,
-                    timestamp=datetime.now(),
-                    age_group=self._estimate_age_from_height(height_estimate),
-                    height_estimate=height_estimate,
-                    width_estimate=width_estimate,
-                    confidence=confidence
-                )
-                
-                people_in_frame.append(person)
-                self.active_people[person_id] = person
-                
-                # 1. RECONHECIMENTO FACIAL (se habilitado e frame disponível)
-                if self.face_recognition_enabled and frame is not None:
-                    try:
-                        face_region = self._extract_face_region(frame, bbox)
-                        if face_region is not None:
-                            identity = await self.face_registry.identify_person(face_region)
-                            smart_detection.identity = identity
-                            smart_detection.is_employee = (identity.type == 'employee')
-                            smart_detection.is_returning_customer = (identity.type == 'frequent_customer')
-                    except Exception as e:
-                        logger.debug(f"Erro no reconhecimento facial: {e}")
-                
-                # 2. ANÁLISE TEMPORAL (jornada do cliente)
-                try:
-                    journey = await self.purchase_analyzer.track_customer_journey(
-                        person_id=person_id,
-                        timestamp=smart_detection.timestamp,
-                        position=position,
-                        observations=detection.get('observations', {})
-                    )
-                    
-                    if journey:
-                        smart_detection.journey_state = self._get_journey_state(journey)
-                        smart_detection.purchase_probability = journey.purchase_probability
-                        smart_detection.customer_type = journey.customer_type
-                except Exception as e:
-                    logger.debug(f"Erro na análise temporal: {e}")
-                
-                smart_detections.append(smart_detection)
+            # Behavior Analysis
+            self.behavior_analyzer = BehaviorAnalyzer()
+            await self.behavior_analyzer.initialize()
             
-            # 3. DETECÇÃO DE GRUPOS
-            try:
-                detected_groups = await self.group_detector.detect_groups(people_in_frame)
-                
-                # Atualizar detecções com informações de grupo
-                for group in detected_groups:
-                    for member in group.members:
-                        for detection in smart_detections:
-                            if detection.person_id == member.person_id:
-                                detection.group_id = group.group_id
-                                detection.group_role = member.role
-                                break
-            except Exception as e:
-                logger.debug(f"Erro na detecção de grupos: {e}")
+            # Customer Segmentation
+            self.segmentation = CustomerSegmentation()
+            await self.segmentation.initialize()
             
-            # 4. ANÁLISE COMPORTAMENTAL (Re-ID)
-            await self._process_behavior_analysis(smart_detections)
+            # Predictive Insights
+            self.predictive = PredictiveEngine()
+            await self.predictive.initialize()
             
-            # Atualizar cache de detecções
-            for detection in smart_detections:
-                self.current_detections[detection.person_id] = detection
+            # Privacy Manager
+            self.privacy = PrivacyManager()
             
-            # Limpar cache de métricas
-            self._metrics_cache = None
-            
-            return smart_detections
+            logger.success("✅ Todos os módulos de IA inicializados")
             
         except Exception as e:
-            logger.error(f"Erro no processamento inteligente: {e}")
-            return []
+            logger.error(f"❌ Erro ao inicializar IA: {e}")
+            raise
     
-    async def _process_behavior_analysis(self, detections: List[SmartDetection]):
-        """Processa análise comportamental para re-identificação"""
+    async def process_frame(
+        self,
+        frame: np.ndarray,
+        detections: List[Dict],
+        timestamp: datetime
+    ) -> SmartMetrics:
+        """
+        Processar frame com todas as análises de IA
+        
+        Args:
+            frame: Frame de vídeo
+            detections: Lista de detecções do YOLO
+            timestamp: Timestamp do frame
+            
+        Returns:
+            SmartMetrics com todas as análises
+        """
+        
+        # 1. Identificar pessoas (funcionários vs clientes)
+        person_types = await self._identify_people(frame, detections)
+        
+        # 2. Analisar comportamento
+        behavior_data = await self.behavior_analyzer.analyze(
+            detections, person_types, timestamp
+        )
+        
+        # 3. Segmentar clientes
+        segments = await self.segmentation.segment_customers(
+            self.person_registry, behavior_data
+        )
+        
+        # 4. Gerar predições
+        predictions = await self.predictive.generate_predictions(
+            historical_data=self._get_historical_data(),
+            current_state=behavior_data,
+            timestamp=timestamp
+        )
+        
+        # 5. Detectar anomalias
+        anomalies = await self._detect_anomalies(behavior_data)
+        
+        # 6. Gerar recomendações
+        recommendations = await self._generate_recommendations(
+            behavior_data, predictions, anomalies
+        )
+        
+        # 7. Compilar métricas
+        metrics = SmartMetrics(
+            total_people=len(detections),
+            customers=sum(1 for p in person_types.values() if p == PersonType.CUSTOMER),
+            employees=sum(1 for p in person_types.values() if p == PersonType.EMPLOYEE),
+            avg_dwell_time=behavior_data.get('avg_dwell_time', 0),
+            hot_zones=behavior_data.get('hot_zones', []),
+            customer_flow_pattern=behavior_data.get('flow_pattern', 'normal'),
+            customer_segments=segments,
+            group_shopping_rate=behavior_data.get('group_rate', 0),
+            next_hour_prediction=predictions.get('next_hour', 0),
+            conversion_probability=predictions.get('conversion_prob', 0),
+            optimal_staff_needed=predictions.get('optimal_staff', 1),
+            anomalies_detected=anomalies,
+            recommendations=recommendations,
+            timestamp=timestamp,
+            confidence_score=self._calculate_confidence(detections)
+        )
+        
+        self.last_metrics = metrics
+        return metrics
+    
+    async def _identify_people(
+        self,
+        frame: np.ndarray,
+        detections: List[Dict]
+    ) -> Dict[int, PersonType]:
+        """
+        Identificar se cada pessoa é funcionário ou cliente
+        """
+        person_types = {}
+        
+        if not self.face_manager or not self.enable_face_recognition:
+            # Sem face recognition, todos são clientes
+            return {d['id']: PersonType.CUSTOMER for d in detections}
+        
         for detection in detections:
-            try:
-                # Obter histórico de tracking da pessoa (simulado)
-                person_track = self._get_person_track_history(detection.person_id)
+            bbox = detection['bbox']
+            person_id = detection['id']
+            
+            # Extrair face da detecção
+            face_img = self._extract_face(frame, bbox)
+            
+            if face_img is not None:
+                # Verificar se é funcionário
+                is_employee, employee_id = await self.face_manager.is_employee(face_img)
                 
-                if len(person_track) >= self.min_track_length:
-                    # Extrair assinatura comportamental
-                    behavior_signature = self.behavior_reid.extract_behavior_signature(person_track)
-                    
-                    # Verificar se é cliente retornando
-                    match_result = self.behavior_reid.match_returning_customer(behavior_signature)
-                    
-                    detection.behavior_match = match_result
-                    detection.is_returning_customer = match_result['is_returning']
-                    detection.customer_type = self.behavior_reid.classify_customer_type(behavior_signature)
-                    
-            except Exception as e:
-                logger.debug(f"Erro na análise comportamental para {detection.person_id}: {e}")
-    
-    def _get_person_track_history(self, person_id: str) -> List[Dict]:
-        """Obtém histórico de tracking de uma pessoa (simulado)"""
-        # Em implementação real, isso viria do tracker
-        # Aqui vamos simular com dados básicos
-        if person_id in self.active_people:
-            person = self.active_people[person_id]
-            return [{
-                'center': person.position,
-                'timestamp': person.timestamp.timestamp(),
-                'height': person.height_estimate,
-                'width': person.width_estimate,
-                'confidence': person.confidence,
-                'zone': 'products'  # seria calculado baseado na posição
-            }]
-        return []
-    
-    def _extract_face_region(self, frame: np.ndarray, bbox: List[int]) -> Optional[np.ndarray]:
-        """Extrai região da face do frame"""
-        try:
-            if len(bbox) < 4:
-                return None
-            
-            x1, y1, x2, y2 = bbox
-            
-            # Expandir bbox para incluir mais contexto facial
-            height = y2 - y1
-            width = x2 - x1
-            
-            # Ajustar para região da cabeça (terço superior do bbox)
-            face_y1 = max(0, y1)
-            face_y2 = min(frame.shape[0], y1 + int(height * 0.4))
-            face_x1 = max(0, x1)
-            face_x2 = min(frame.shape[1], x2)
-            
-            face_region = frame[face_y1:face_y2, face_x1:face_x2]
-            
-            # Verificar se a região é válida
-            if face_region.size == 0 or min(face_region.shape[:2]) < 32:
-                return None
-            
-            return face_region
-            
-        except Exception as e:
-            logger.debug(f"Erro ao extrair região facial: {e}")
-            return None
-    
-    def _estimate_age_from_height(self, height: float) -> AgeGroup:
-        """Estima idade baseada na altura"""
-        if height < 80:
-            return AgeGroup.CRIANCA
-        elif height < 120:
-            return AgeGroup.ADOLESCENTE
-        elif height < 150:
-            return AgeGroup.JOVEM
-        elif height < 180:
-            return AgeGroup.ADULTO
-        else:
-            return AgeGroup.IDOSO
-    
-    def _get_journey_state(self, journey: CustomerJourney) -> str:
-        """Obtém estado atual da jornada do cliente"""
-        if journey.exit_time:
-            return 'completed'
-        elif journey.cashier_time > 10:
-            return 'at_cashier'
-        elif len(journey.zones_visited) > 2:
-            return 'browsing'
-        else:
-            return 'exploring'
-    
-    async def get_smart_metrics(self) -> SmartMetrics:
-        """
-        Obtém métricas inteligentes combinadas
+                if is_employee:
+                    person_types[person_id] = PersonType.EMPLOYEE
+                    self._update_person_registry(person_id, 'employee', employee_id)
+                else:
+                    # Tentar re-identificar cliente conhecido
+                    customer_id = await self.face_manager.identify_customer(face_img)
+                    person_types[person_id] = PersonType.CUSTOMER
+                    self._update_person_registry(person_id, 'customer', customer_id)
+            else:
+                person_types[person_id] = PersonType.UNKNOWN
         
-        Returns:
-            SmartMetrics com análise completa
-        """
-        # Verificar cache
-        if (self._metrics_cache and 
-            datetime.now() < self._cache_expiry):
-            return self._metrics_cache
-        
-        try:
-            metrics = SmartMetrics()
-            
-            # Análise das detecções atuais
-            current_detections = list(self.current_detections.values())
-            
-            # Contagem inteligente
-            metrics.total_visitors = len(current_detections)
-            metrics.employees_detected = sum(1 for d in current_detections if d.is_employee)
-            metrics.real_customers = metrics.total_visitors - metrics.employees_detected
-            
-            # Análise de grupos
-            active_groups = self.group_detector.get_active_groups()
-            metrics.groups_count = len(active_groups)
-            
-            group_types = {'families': 0, 'couples': 0, 'friends': 0}
-            total_group_size = 0
-            
-            for group in active_groups:
-                if group.group_type.value in group_types:
-                    group_types[group.group_type.value] += 1
-                total_group_size += group.size
-            
-            metrics.groups = group_types
-            metrics.groups['average_size'] = (total_group_size / len(active_groups) 
-                                            if active_groups else 0.0)
-            
-            # Análise por tipo de cliente
-            customer_types = {'objective': 0, 'explorer': 0, 'economic': 0, 'casual': 0}
-            for detection in current_detections:
-                if detection.customer_type and detection.customer_type in customer_types:
-                    customer_types[detection.customer_type] += 1
-            
-            metrics.customer_types = customer_types
-            
-            # Análise de compras (últimas 24h)
-            purchase_stats = self.purchase_analyzer.get_purchase_statistics(timedelta(hours=24))
-            if 'error' not in purchase_stats:
-                metrics.purchases = {
-                    'confirmed_by_behavior': purchase_stats.get('likely_purchases', 0),
-                    'avg_time_to_purchase': self._format_duration(purchase_stats.get('avg_journey_time', 0)),
-                    'conversion_rate': purchase_stats.get('conversion_rate', 0.0)
-                }
-            
-            # Re-identificação de clientes
-            behavior_stats = self.behavior_reid.get_statistics()
-            if 'total_customers' in behavior_stats:
-                total_customers = behavior_stats['total_customers']
-                frequent_customers = behavior_stats.get('frequent_customers', 0)
-                
-                metrics.returning_customers = {
-                    'count': frequent_customers,
-                    'percentage': (frequent_customers / max(1, total_customers)) * 100,
-                    'avg_visits_per_customer': behavior_stats.get('avg_visits_per_customer', 0.0)
-                }
-            
-            # Cache do resultado
-            self._metrics_cache = metrics
-            self._cache_expiry = datetime.now() + self._cache_duration
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Erro ao calcular métricas inteligentes: {e}")
-            return SmartMetrics()
+        return person_types
     
-    def _format_duration(self, seconds: float) -> str:
-        """Formata duração em segundos para string legível"""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-    
-    async def register_employee_face(self, image_path: str, employee_id: str, name: str) -> Dict[str, Any]:
+    async def register_employee(
+        self,
+        name: str,
+        face_image: np.ndarray,
+        employee_id: Optional[str] = None
+    ) -> str:
         """
-        Registra funcionário no sistema de reconhecimento facial
-        
-        Args:
-            image_path: Caminho para foto temporária
-            employee_id: ID único do funcionário
-            name: Nome do funcionário
-            
-        Returns:
-            Resultado do registro
+        Registrar novo funcionário no sistema
         """
-        if not self.face_recognition_enabled:
-            return {'success': False, 'error': 'Reconhecimento facial desabilitado'}
+        if not self.face_manager:
+            raise Exception("Face recognition não está habilitado")
         
-        return await self.face_registry.register_employee(image_path, employee_id, name)
+        employee_id = await self.face_manager.register_employee(
+            name, face_image, employee_id
+        )
+        
+        logger.info(f"✅ Funcionário {name} registrado com ID {employee_id}")
+        return employee_id
     
-    async def remove_employee_face(self, employee_id: str) -> bool:
-        """Remove funcionário do sistema"""
-        if not self.face_recognition_enabled:
+    async def remove_employee(self, employee_id: str) -> bool:
+        """
+        Remover funcionário do sistema
+        """
+        if not self.face_manager:
             return False
         
-        return self.face_registry.remove_employee(employee_id)
-    
-    def get_employee_list(self) -> List[Dict[str, Any]]:
-        """Lista funcionários cadastrados"""
-        if not self.face_recognition_enabled:
-            return []
+        success = await self.face_manager.remove_employee(employee_id)
+        if success:
+            logger.info(f"✅ Funcionário {employee_id} removido")
         
-        return self.face_registry.get_employee_list()
+        return success
     
-    async def get_detailed_analytics(self) -> Dict[str, Any]:
+    def _extract_face(self, frame: np.ndarray, bbox: List[int]) -> Optional[np.ndarray]:
         """
-        Obtém análise detalhada combinando todos os módulos
-        
-        Returns:
-            Análise completa com insights de todos os sistemas
+        Extrair região da face de uma bounding box
         """
         try:
-            # Métricas gerais
-            smart_metrics = await self.get_smart_metrics()
+            x1, y1, x2, y2 = bbox
             
-            # Estatísticas detalhadas de cada módulo
-            face_stats = (self.face_registry.get_statistics() 
-                         if self.face_recognition_enabled else {})
-            purchase_stats = self.purchase_analyzer.get_purchase_statistics()
-            behavior_stats = self.behavior_reid.get_statistics()
-            group_stats = self.group_detector.get_group_statistics()
+            # Expandir bbox para pegar mais contexto da face
+            height, width = frame.shape[:2]
+            padding = 20
             
-            # Análise de tendências
-            trends = await self._analyze_trends()
+            x1 = max(0, x1 - padding)
+            y1 = max(0, y1 - padding)
+            x2 = min(width, x2 + padding)
+            y2 = min(height, y2 + padding)
             
-            # Insights automatizados
-            insights = await self._generate_insights()
+            face_img = frame[y1:y2, x1:x2]
             
-            return {
-                'timestamp': datetime.now().isoformat(),
-                'smart_metrics': smart_metrics,
-                'detailed_stats': {
-                    'face_recognition': face_stats,
-                    'purchase_analysis': purchase_stats,
-                    'behavior_reid': behavior_stats,
-                    'group_detection': group_stats
-                },
-                'trends': trends,
-                'insights': insights,
-                'system_status': {
-                    'face_recognition': self.face_recognition_enabled,
-                    'modules_active': 4,
-                    'processing_queue_size': self.processing_queue.qsize()
-                }
-            }
+            if face_img.size == 0:
+                return None
+            
+            # Aplicar blur para privacidade se necessário
+            if self.privacy and self.privacy.should_blur_face():
+                face_img = cv2.GaussianBlur(face_img, (99, 99), 30)
+            
+            return face_img
             
         except Exception as e:
-            logger.error(f"Erro ao gerar análise detalhada: {e}")
-            return {'error': str(e)}
+            logger.error(f"Erro ao extrair face: {e}")
+            return None
     
-    async def _analyze_trends(self) -> Dict[str, Any]:
-        """Analisa tendências nos dados"""
-        # Placeholder para análise de tendências
-        # Em implementação real, analisaria dados históricos
+    def _update_person_registry(
+        self,
+        person_id: int,
+        person_type: str,
+        identity_id: Optional[str]
+    ):
+        """
+        Atualizar registro de pessoas
+        """
+        if person_id not in self.person_registry:
+            self.person_registry[person_id] = {
+                'first_seen': datetime.now(),
+                'last_seen': datetime.now(),
+                'type': person_type,
+                'identity_id': identity_id,
+                'visit_count': 1,
+                'total_time': 0,
+                'behavior_profile': {}
+            }
+        else:
+            self.person_registry[person_id]['last_seen'] = datetime.now()
+            self.person_registry[person_id]['visit_count'] += 1
+    
+    async def _detect_anomalies(self, behavior_data: Dict) -> List[str]:
+        """
+        Detectar comportamentos anômalos
+        """
+        anomalies = []
+        
+        # Exemplo: Pessoa parada muito tempo
+        if behavior_data.get('max_dwell_time', 0) > 30:  # minutos
+            anomalies.append("Cliente parado há mais de 30 minutos")
+        
+        # Exemplo: Movimento errático
+        if behavior_data.get('erratic_movement_score', 0) > 0.8:
+            anomalies.append("Movimento errático detectado")
+        
+        # Exemplo: Aglomeração
+        if behavior_data.get('crowd_density', 0) > 0.7:
+            anomalies.append("Alta densidade de pessoas detectada")
+        
+        return anomalies
+    
+    async def _generate_recommendations(
+        self,
+        behavior_data: Dict,
+        predictions: Dict,
+        anomalies: List[str]
+    ) -> List[str]:
+        """
+        Gerar recomendações baseadas em IA
+        """
+        recommendations = []
+        
+        # Recomendações de staffing
+        current_staff = behavior_data.get('current_staff', 0)
+        optimal_staff = predictions.get('optimal_staff', 1)
+        
+        if optimal_staff > current_staff:
+            recommendations.append(f"📈 Adicionar {optimal_staff - current_staff} funcionário(s)")
+        elif optimal_staff < current_staff:
+            recommendations.append(f"📉 Reduzir {current_staff - optimal_staff} funcionário(s)")
+        
+        # Recomendações de conversão
+        conv_prob = predictions.get('conversion_prob', 0)
+        if conv_prob > 0.7:
+            recommendations.append("🎯 Alta probabilidade de conversão - momento ideal para abordagem")
+        elif conv_prob < 0.3:
+            recommendations.append("⚠️ Baixa conversão - revisar estratégia de vendas")
+        
+        # Recomendações baseadas em anomalias
+        if "Alta densidade" in str(anomalies):
+            recommendations.append("🚨 Abrir mais caixas ou áreas de atendimento")
+        
+        # Recomendações de horário
+        next_hour = predictions.get('next_hour', 0)
+        if next_hour > behavior_data.get('current_count', 0) * 1.5:
+            recommendations.append("📊 Pico previsto na próxima hora - preparar equipe")
+        
+        return recommendations
+    
+    def _calculate_confidence(self, detections: List[Dict]) -> float:
+        """
+        Calcular score de confiança geral
+        """
+        if not detections:
+            return 1.0
+        
+        confidences = [d.get('confidence', 0.5) for d in detections]
+        return sum(confidences) / len(confidences)
+    
+    def _get_historical_data(self) -> Dict:
+        """
+        Obter dados históricos para predições
+        """
+        # Implementar busca no banco de dados
+        # Por ora, retornar dados mock
         return {
-            'visitor_trend': 'stable',
-            'conversion_trend': 'improving',
-            'group_size_trend': 'increasing',
-            'return_customer_trend': 'stable'
+            'last_hour_visitors': 45,
+            'last_hour_sales': 12,
+            'avg_daily_visitors': 320,
+            'avg_conversion_rate': 0.15
         }
     
-    async def _generate_insights(self) -> List[Dict[str, str]]:
-        """Gera insights automatizados"""
-        insights = []
-        
-        try:
-            metrics = await self.get_smart_metrics()
-            
-            # Insight sobre funcionários detectados
-            if metrics.employees_detected > 0:
-                insights.append({
-                    'type': 'info',
-                    'title': 'Funcionários na Loja',
-                    'message': f'{metrics.employees_detected} funcionários detectados atualmente'
-                })
-            
-            # Insight sobre conversão
-            if metrics.purchases['conversion_rate'] > 15:
-                insights.append({
-                    'type': 'positive',
-                    'title': 'Boa Taxa de Conversão',
-                    'message': f'Taxa de conversão atual: {metrics.purchases["conversion_rate"]:.1f}%'
-                })
-            
-            # Insight sobre grupos
-            if metrics.groups['families'] > metrics.groups['couples']:
-                insights.append({
-                    'type': 'info',
-                    'title': 'Perfil de Visitantes',
-                    'message': 'Muitas famílias visitando - considere produtos infantis'
-                })
-            
-            # Insight sobre clientes retornando
-            if metrics.returning_customers['percentage'] > 30:
-                insights.append({
-                    'type': 'positive',
-                    'title': 'Fidelização Alta',
-                    'message': f'{metrics.returning_customers["percentage"]:.1f}% são clientes retornando'
-                })
-                
-        except Exception as e:
-            logger.error(f"Erro ao gerar insights: {e}")
-        
-        return insights
-    
-    def cleanup_old_data(self):
-        """Remove dados antigos da memória"""
-        try:
-            # Limpar detecções antigas (>5 minutos)
-            cutoff_time = datetime.now() - timedelta(minutes=5)
-            to_remove = [
-                person_id for person_id, detection in self.current_detections.items()
-                if detection.timestamp < cutoff_time
-            ]
-            
-            for person_id in to_remove:
-                del self.current_detections[person_id]
-                if person_id in self.active_people:
-                    del self.active_people[person_id]
-            
-            # Limpar dados dos módulos
-            self.purchase_analyzer.cleanup_old_journeys()
-            self.group_detector.cleanup_old_groups()
-            
-            if to_remove:
-                logger.debug(f"Limpeza: removidos {len(to_remove)} registros antigos")
-                
-        except Exception as e:
-            logger.error(f"Erro na limpeza de dados: {e}")
-    
-    async def get_person_details(self, person_id: str) -> Optional[Dict[str, Any]]:
-        """Obtém detalhes completos sobre uma pessoa específica"""
-        if person_id not in self.current_detections:
-            return None
-        
-        detection = self.current_detections[person_id]
-        
-        # Obter jornada do cliente
-        journey = self.purchase_analyzer.get_journey(person_id)
-        
-        # Obter insights comportamentais
-        behavior_insights = None
-        if detection.behavior_match:
-            customer_id = detection.behavior_match.get('customer_id')
-            if customer_id:
-                behavior_insights = self.behavior_reid.get_customer_insights(customer_id)
+    async def get_analytics_summary(self) -> Dict:
+        """
+        Obter resumo analítico completo
+        """
+        if not self.last_metrics:
+            return {}
         
         return {
-            'person_id': person_id,
-            'detection': {
-                'timestamp': detection.timestamp.isoformat(),
-                'position': detection.position,
-                'confidence': detection.confidence,
-                'is_employee': detection.is_employee,
-                'is_returning_customer': detection.is_returning_customer,
-                'customer_type': detection.customer_type,
-                'estimated_age_group': detection.estimated_age_group
-            },
-            'identity': detection.identity.__dict__ if detection.identity else None,
-            'group_info': {
-                'group_id': detection.group_id,
-                'role': detection.group_role
-            } if detection.group_id else None,
-            'journey': journey.__dict__ if journey else None,
-            'behavior_insights': behavior_insights
+            'metrics': self.last_metrics.__dict__,
+            'registry_size': len(self.person_registry),
+            'employees_detected': len([
+                p for p in self.person_registry.values()
+                if p['type'] == 'employee'
+            ]),
+            'customers_detected': len([
+                p for p in self.person_registry.values()
+                if p['type'] == 'customer'
+            ]),
+            'ai_modules_status': {
+                'face_recognition': self.face_manager is not None,
+                'behavior_analysis': self.behavior_analyzer is not None,
+                'segmentation': self.segmentation is not None,
+                'predictive': self.predictive is not None
+            }
         }

@@ -33,8 +33,8 @@ from models.api_models import *
 from utils.helpers import *
 
 # Importar Smart Analytics Engine
-# from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
-# from core.ai.privacy_config import privacy_manager
+from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
+from core.ai.privacy_config import privacy_manager
 
 # Load environment variables
 load_dotenv()
@@ -78,9 +78,14 @@ async def lifespan(app: FastAPI):
         logger.success("✅ Tracker inicializado")
         
         # Inicializar Smart Analytics Engine
-        # smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
-        smart_engine = None
-        logger.success("✅ Smart Analytics Engine inicializado (simulado)")
+        smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
+        await smart_engine.initialize()
+        
+        # Inicializar smart engine nos roteadores
+        init_analytics(smart_engine)
+        init_employees(smart_engine)
+        
+        logger.success("✅ Smart Analytics Engine inicializado")
         
         # Criar diretórios necessários
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
@@ -124,6 +129,13 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # Incluir rotas da API de câmera
 from api.routes.camera import router as camera_router
 app.include_router(camera_router)
+
+# Incluir novas rotas de Analytics e Employees
+from api.routes.analytics import router as analytics_router, init_smart_engine as init_analytics
+from api.routes.employees import router as employees_router, init_smart_engine as init_employees
+
+app.include_router(analytics_router)
+app.include_router(employees_router)
 
 # ============================================================================
 # ENDPOINTS DE BRIDGE (Recepção de frames da câmera)
@@ -365,12 +377,18 @@ async def websocket_smart_metrics(websocket: WebSocket):
     try:
         while True:
             # Enviar métricas inteligentes a cada 3 segundos
-            smart_metrics = await smart_engine.get_smart_metrics()
-            metrics_data = {
-                'type': 'smart_metrics_update',
-                'data': smart_metrics.__dict__,
-                'timestamp': datetime.now().isoformat()
-            }
+            if smart_engine and smart_engine.last_metrics:
+                metrics_data = {
+                    'type': 'smart_metrics_update',
+                    'data': smart_engine.last_metrics.__dict__,
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                metrics_data = {
+                    'type': 'smart_metrics_update',
+                    'data': {'status': 'no_metrics_available'},
+                    'timestamp': datetime.now().isoformat()
+                }
             await websocket_manager.send_personal_message(json.dumps(metrics_data), websocket)
             await asyncio.sleep(3)
     except WebSocketDisconnect:
@@ -405,7 +423,11 @@ async def health_check():
             "detector": detector is not None and detector.model is not None,
             "tracker": tracker is not None,
             "smart_engine": smart_engine is not None,
-            "privacy_manager": privacy_manager is not None
+            "privacy_manager": privacy_manager is not None,
+            "face_recognition": smart_engine.face_manager is not None if smart_engine else False,
+            "behavior_analyzer": smart_engine.behavior_analyzer is not None if smart_engine else False,
+            "customer_segmentation": smart_engine.segmentation is not None if smart_engine else False,
+            "predictive_insights": smart_engine.predictive is not None if smart_engine else False
         }
     }
 
@@ -448,7 +470,9 @@ async def process_smart_frame(frame_array, timestamp: str):
         tracked_objects = tracker.update(detections)
         
         # Processar com Smart Analytics
-        smart_detections = await smart_engine.process_frame_detections(detections, frame_array)
+        if smart_engine:
+            timestamp_dt = datetime.fromisoformat(timestamp)
+            smart_metrics = await smart_engine.process_frame(frame_array, detections, timestamp_dt)
         
         # Verificar cruzamentos da linha
         line_position = settings.LINE_POSITION / 100.0
@@ -456,19 +480,20 @@ async def process_smart_frame(frame_array, timestamp: str):
         
         # Processar cada cruzamento
         for crossing in crossings:
-            await handle_smart_crossing(crossing, timestamp, frame_array, smart_detections)
+            await handle_smart_crossing(crossing, timestamp, frame_array, smart_metrics if smart_engine else None)
             
         # Broadcast métricas via WebSocket
-        smart_metrics = await smart_engine.get_smart_metrics()
-        metrics_message = {
-            'type': 'smart_metrics_update',
-            'data': smart_metrics.__dict__,
-            'timestamp': datetime.now().isoformat()
-        }
-        await websocket_manager.broadcast(json.dumps(metrics_message))
+        if smart_engine and smart_engine.last_metrics:
+            metrics_message = {
+                'type': 'smart_metrics_update',
+                'data': smart_engine.last_metrics.__dict__,
+                'timestamp': datetime.now().isoformat()
+            }
+            await websocket_manager.broadcast(json.dumps(metrics_message))
         
         # Cleanup periódico
-        smart_engine.cleanup_old_data()
+        if smart_engine:
+            pass  # Smart engine doesn't have cleanup_old_data method
         privacy_manager.cleanup_old_audit_logs()
         
     except Exception as e:
@@ -479,25 +504,26 @@ async def process_smart_frame(frame_array, timestamp: str):
             component="smart_processor"
         )
 
-async def handle_smart_crossing(crossing: Dict[str, Any], timestamp: str, frame_array, smart_detections: List):
+async def handle_smart_crossing(crossing: Dict[str, Any], timestamp: str, frame_array, smart_metrics: SmartMetrics):
     """Processar cruzamento com informações inteligentes"""
     try:
         person_id = crossing['person_id']
         
-        # Encontrar detecção inteligente correspondente
-        smart_detection = next(
-            (d for d in smart_detections if d.person_id == person_id), 
-            None
-        )
-        
-        # Metadados inteligentes
+        # Metadados inteligentes baseados nas métricas
         metadata = {
-            'is_employee': smart_detection.is_employee if smart_detection else False,
-            'is_returning_customer': smart_detection.is_returning_customer if smart_detection else False,
-            'customer_type': smart_detection.customer_type if smart_detection else None,
-            'group_id': smart_detection.group_id if smart_detection else None,
-            'purchase_probability': smart_detection.purchase_probability if smart_detection else 0.0
+            'is_employee': False,  # Será determinado pela análise de smart_metrics
+            'is_returning_customer': False,
+            'customer_type': 'unknown',
+            'group_id': None,
+            'purchase_probability': smart_metrics.conversion_probability if smart_metrics else 0.0,
+            'ai_enabled': smart_metrics is not None
         }
+        
+        # Se há métricas inteligentes, extrair informações relevantes
+        if smart_metrics:
+            metadata['total_employees_detected'] = smart_metrics.employees
+            metadata['flow_pattern'] = smart_metrics.customer_flow_pattern
+            metadata['recommendations'] = smart_metrics.recommendations[:3] if smart_metrics.recommendations else []
         
         # Salvar snapshot se disponível
         snapshot_url = None
@@ -514,9 +540,9 @@ async def handle_smart_crossing(crossing: Dict[str, Any], timestamp: str, frame_
             metadata=metadata
         )
         
-        # Log específico para funcionários
-        if smart_detection and smart_detection.is_employee:
-            logger.info(f"👤 Funcionário detectado: {person_id} - {crossing['action']}")
+        # Log específico baseado em métricas inteligentes
+        if smart_metrics and smart_metrics.employees > 0:
+            logger.info(f"👤 Sistema inteligente ativo: {person_id} - {crossing['action']} (funcionários: {smart_metrics.employees})")
         else:
             logger.info(f"👥 Cliente {crossing['action']}: {person_id} (prob. compra: {metadata['purchase_probability']:.2f})")
         
