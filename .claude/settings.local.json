@@ -76,7 +76,20 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\app/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
-      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\models/**)"
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\models/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\app/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\providers/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\providers/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\app/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\app/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\app/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize/**)",
+      "Bash(npm run build:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []
