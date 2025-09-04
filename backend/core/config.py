@@ -8,7 +8,7 @@ import os
 
 class Settings(BaseSettings):
     # Supabase
-    SUPABASE_URL: str = "http://localhost:8000"
+    SUPABASE_URL: str = "https://orzzycayjzgcuvcsrxsi.supabase.co"
     SUPABASE_ANON_KEY: str = ""
     SUPABASE_SERVICE_KEY: str = ""
     
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     HEALTH_CHECK_ENABLED: bool = True
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    ALLOWED_ORIGINS: List[str] = ["https://shopflow-frontend.hshars.easypanel.host", "http://localhost:3000", "http://localhost:3001"]
     
     # WebSocket
     WS_MAX_CONNECTIONS: int = 100

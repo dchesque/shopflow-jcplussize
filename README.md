@@ -2,6 +2,10 @@
 
 Sistema avançado de análise de tráfego de pessoas com IA integrada, reconhecimento facial LGPD-compliant, análise comportamental e detecção inteligente de compras.
 
+**🔗 Deploy**: Backend porta 3333, Frontend porta 3000  
+**🗄️ Database**: Supabase.com  
+**🎥 Câmera**: RTSP Intelbras Mibo  
+
 ## 🚀 Features
 
 ### 🎯 Core Features
@@ -11,7 +15,7 @@ Sistema avançado de análise de tráfego de pessoas com IA integrada, reconheci
 - ✅ **Dashboard Interativo** - Métricas e gráficos em tempo real
 - ✅ **Supabase Database** - PostgreSQL com realtime subscriptions
 - ✅ **API REST Completa** - FastAPI com documentação automática
-- ✅ **Deploy Easypanel** - Containerização completa com CI/CD
+- ✅ **Deploy EasyPanel** - Containerização completa
 
 ### 🧠 Smart Analytics (IA)
 - 🎭 **Reconhecimento Facial LGPD-Compliant** - Identifica funcionários sem armazenar fotos
@@ -25,17 +29,14 @@ Sistema avançado de análise de tráfego de pessoas com IA integrada, reconheci
 - ✅ **Nunca armazena faces** - Apenas embeddings matemáticos
 - ✅ **Auto-limpeza** - Dados removidos automaticamente
 - ✅ **Auditoria completa** - Logs de todas as operações
-- ✅ **Direito ao esquecimento** - Exclusão completa de dados
 
 ## 🛠️ Stack Tecnológica
 
 ### Backend
 - **FastAPI** - API REST moderna e rápida
 - **YOLO11** - Detecção de pessoas state-of-the-art
-- **DeepFace** - Reconhecimento facial com FaceNet512
 - **scikit-learn** - Machine learning para análise comportamental
 - **Supabase** - PostgreSQL + Realtime + Auth
-- **Redis** - Cache e pub/sub
 - **WebSocket** - Comunicação em tempo real
 
 ### Frontend
@@ -49,259 +50,220 @@ Sistema avançado de análise de tráfego de pessoas com IA integrada, reconheci
 
 ### DevOps
 - **Docker** - Containerização
+- **EasyPanel** - Deploy e hosting
 - **GitHub Actions** - CI/CD
-- **Easypanel** - Deploy automático
-- **Nginx** - Reverse proxy
-- **Prometheus** - Monitoramento
 
-## 🚀 Quick Start
+## 🚀 Quick Start - Deploy
 
-### 1. Clone e Configure
-```bash
-git clone https://github.com/dchesque/shopflow-jcplussize.git
-cd shopflow-jcplussize
+### 📋 Pré-requisitos
+- Conta EasyPanel ativa
+- Supabase.com configurado
+- Repositório Git
 
-# Configurar ambiente
-cp .env.example .env
-cp frontend/.env.local.example frontend/.env.local
+### 1️⃣ Backend Service no EasyPanel
 
-# Bridge PC da loja
-cd bridge
-copy config.ini.example config.ini
-# Editar config.ini com senha real da câmera
+```yaml
+Nome: shopflow-backend
+Build Path: /backend
+Dockerfile: Dockerfile.easypanel
+Port: 3333
+Domain: [seu-dominio-backend]
 ```
 
-### 2. Docker Compose (Recomendado)
-```bash
-# Iniciar todos os serviços
-docker-compose up -d
-
-# Verificar status
-docker-compose ps
-
-# Ver logs
-docker-compose logs -f
+**Environment Variables:**
+```env
+SUPABASE_URL=[sua-supabase-url]
+SUPABASE_ANON_KEY=[sua-anon-key]
+SUPABASE_SERVICE_KEY=[sua-service-key]
+JWT_SECRET=[seu-jwt-secret]
+API_HOST=0.0.0.0
+API_PORT=3333
+ALLOWED_ORIGINS=["https://[seu-dominio-frontend]"]
+YOLO_MODEL=yolo11n.pt
+YOLO_CONFIDENCE=0.6
+BRIDGE_API_KEY=[sua-bridge-key]
+LOG_LEVEL=INFO
 ```
 
-### 3. Desenvolvimento Local
+### 2️⃣ Frontend Service no EasyPanel
+
+```yaml
+Nome: shopflow-frontend
+Build Path: /frontend
+Dockerfile: Dockerfile.easypanel
+Port: 3000
+Domain: [seu-dominio-frontend]
+```
+
+**Build Args:**
+```env
+NEXT_PUBLIC_SUPABASE_URL=[sua-supabase-url]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[sua-anon-key]
+NEXT_PUBLIC_API_URL=https://[seu-dominio-backend]
+```
+
+### 3️⃣ Database Setup no Supabase
+
+Execute no **Supabase SQL Editor**:
+
+```sql
+-- Tabela de eventos da câmera
+CREATE TABLE IF NOT EXISTS camera_events (
+    id BIGSERIAL PRIMARY KEY,
+    camera_id TEXT NOT NULL DEFAULT 'main',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    people_count INTEGER DEFAULT 0,
+    customers_count INTEGER DEFAULT 0,
+    employees_count INTEGER DEFAULT 0,
+    processing_time_ms INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_camera_events_timestamp ON camera_events(timestamp);
+
+-- Tabela de estatísticas em tempo real
+CREATE TABLE IF NOT EXISTS realtime_stats (
+    id BIGSERIAL PRIMARY KEY,
+    total_visitors INTEGER DEFAULT 0,
+    current_customers INTEGER DEFAULT 0,
+    last_update TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO realtime_stats (total_visitors, current_customers) VALUES (0, 0) ON CONFLICT DO NOTHING;
+```
+
+**Habilitar Realtime:**
+- Supabase Dashboard > Database > Replication
+- Add tables: `camera_events`, `realtime_stats`
+
+## 🖥️ Deploy Local (desenvolvimento)
+
+### Backend
 ```bash
-# Backend
 cd backend
+cp .env.example .env
+# Edite .env com suas configurações
 pip install -r requirements.txt
 python main.py
+```
 
-# Frontend
+### Frontend
+```bash
 cd frontend
+cp .env.example .env.local
+# Edite .env.local com suas configurações
 npm install
 npm run dev
 ```
 
-### 3. Bridge da Câmera (PC da Loja)
+### Docker Compose
+```bash
+docker-compose up -d
+```
+
+## 💻 Bridge - PC da Loja
+
+### Instalação Windows
 ```cmd
-# Windows - PC da loja
 cd bridge
 install_windows.bat
+```
 
-# Editar config.ini com dados reais
-# [camera]
-# username = admin  
-# password = SUA_SENHA_AQUI
+### Configuração
+Edite `config.ini`:
+```ini
+[camera]
+rtsp_url = rtsp://[usuario]:[senha]@[ip-camera]:554/cam/realmonitor?channel=1&subtype=0
+username = [usuario-camera]
+password = [senha-camera]
 
-# Iniciar bridge
+[server]
+api_url = https://[seu-dominio-backend]
+api_key = [sua-bridge-key]
+```
+
+### Executar Bridge
+```cmd
 run_bridge.bat
 ```
 
-## 🎥 Configuração da Câmera RTSP
+## ✅ Verificação
 
-### Intelbras Mibo - 192.168.1.52
-- **IP**: `192.168.1.52`
-- **RTSP Principal**: `rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=0`
-- **RTSP Fallback**: `rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=1`
-- **Porta**: `554`
-- **Usuário**: `admin`
-- **Resolução**: 1920x1080 (configurável)
-
-### Teste de Conectividade
+### Health Checks
 ```bash
-# Teste manual RTSP
-ffplay rtsp://admin:senha@192.168.1.52:554/cam/realmonitor?channel=1&subtype=0
+# Backend
+curl https://[seu-backend]/api/health
 
-# Teste API bridge
-curl -X POST https://api.shopflow.jcplussize.com.br/api/camera/test \
-  -H "Authorization: Bearer bridge_prod_key_2024"
+# Frontend
+curl https://[seu-frontend]/api/health
+
+# API Docs
+curl https://[seu-backend]/docs
 ```
 
-## 📊 Métricas Inteligentes
-
-### Exemplo de Dados em Tempo Real
-```json
-{
-  "total_visitors": 45,
-  "real_customers": 42,
-  "employees_detected": 3,
-  "groups": {
-    "families": 5,
-    "couples": 8,
-    "friends": 3,
-    "average_size": 2.3
-  },
-  "customer_types": {
-    "objective": 15,
-    "explorer": 12,
-    "economic": 8,
-    "casual": 7
-  },
-  "purchases": {
-    "confirmed_by_behavior": 18,
-    "conversion_rate": 42.8
-  },
-  "returning_customers": {
-    "count": 8,
-    "percentage": 19.0
-  }
-}
-```
-
-## 🔧 Configuração Avançada
-
-### Registrar Funcionários (LGPD-Compliant)
+### Bridge Test
 ```bash
-curl -X POST "http://localhost:8001/api/ai/employees/register" \
-  -F "employee_id=emp001" \
-  -F "name=João Silva" \
-  -F "photo=@foto_joao.jpg"
+curl -X POST https://[seu-backend]/api/camera/test \
+  -H "Authorization: Bearer [sua-bridge-key]"
 ```
 
-### Configurações de Privacidade
-```bash
-# Verificar configurações atuais
-GET /api/privacy/settings
+## 📊 Monitoramento
 
-# Relatório de conformidade
-GET /api/privacy/compliance-report
+### Logs
+- **Backend**: Container logs no EasyPanel
+- **Frontend**: Container logs no EasyPanel
+- **Bridge**: `bridge/logs/bridge.log`
 
-# Exclusão de dados (Direito ao Esquecimento)
-POST /api/privacy/data-deletion
-```
+### Endpoints de Status
+- **API Health**: `/api/health`
+- **Camera Status**: `/api/camera/status`
+- **API Documentation**: `/docs`
 
-## 🐳 Deploy para Easypanel
+## 🔒 Segurança
 
-### 1. Configurar Secrets no GitHub
-```bash
-# Repository Settings > Secrets and Variables > Actions
-EASYPANEL_BACKEND_WEBHOOK=https://panel.easypanel.io/webhooks/...
-EASYPANEL_FRONTEND_WEBHOOK=https://panel.easypanel.io/webhooks/...
+- 🔐 **JWT Secrets** únicos por ambiente
+- 🌐 **CORS** configurado corretamente
+- 🔑 **API Keys** para bridge authentication
+- 🛡️ **SSL/TLS** automático via EasyPanel
+- 📝 **Logs** de auditoria completos
 
-NEXT_PUBLIC_SUPABASE_URL=https://supabase.shopflow.jcplussize.com.br
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-NEXT_PUBLIC_API_URL=https://api.shopflow.jcplussize.com.br
+## 🚨 Troubleshooting
 
-BACKEND_HEALTH_URL=https://api.shopflow.jcplussize.com.br
-FRONTEND_HEALTH_URL=https://shopflow.jcplussize.com.br
+### Backend não inicia
+1. Verificar environment variables
+2. Testar conexão Supabase
+3. Verificar logs do container
 
-SLACK_WEBHOOK_URL=https://hooks.slack.com/... (opcional)
-```
+### Frontend não carrega
+1. Verificar build args
+2. Confirmar backend running
+3. Testar health endpoints
 
-### 2. Deploy Automático
-```bash
-# Qualquer push na main dispara deploy
-git add .
-git commit -m "🚀 Deploy with camera bridge ready"
-git push origin main
-```
+### Câmera não conecta
+1. Testar RTSP URL manualmente
+2. Verificar config.ini da bridge
+3. Checar firewall/rede
 
-### 3. Monitoramento
-- ✅ GitHub Actions CI/CD automático
-- ✅ Build multi-arch (AMD64/ARM64)
-- ✅ Deploy incremental (só o que mudou)
-- ✅ Health checks automáticos
-- ✅ Notificações Slack
-- ✅ Rollback automático em falha
-
-📋 **[Guia Completo de Deploy](./DEPLOY_EASYPANEL.md)**
-
-## 📁 Estrutura do Projeto
-
-```
-shopflow-jcplussize/
-├── 🎯 frontend/               # Next.js App
-│   ├── src/app/              # App Router
-│   ├── src/components/       # Componentes React
-│   ├── src/lib/             # Utilities e configs
-│   ├── Dockerfile           # Container frontend
-│   └── next.config.js       # Configuração Next.js
-│
-├── 🚀 backend/               # FastAPI API
-│   ├── main.py              # Entry point
-│   ├── core/                # Core modules
-│   │   ├── detector.py      # YOLO11 detection
-│   │   ├── tracker.py       # Object tracking
-│   │   └── ai/              # Smart Analytics
-│   │       ├── face_recognition/     # Reconhecimento facial
-│   │       ├── temporal_analysis/    # Análise temporal
-│   │       ├── behavior_reid/        # Re-identificação
-│   │       ├── group_detection/      # Detecção de grupos
-│   │       └── smart_analytics_engine.py
-│   ├── Dockerfile           # Container backend
-│   └── requirements.txt     # Python dependencies
-│
-├── 📄 docs/                  # Documentação
-│   ├── DEPLOYMENT_GUIDE.md  # Guia de deploy
-│   └── SMART_ANALYTICS_GUIDE.md # IA e Analytics
-│
-├── 🐳 docker-compose.yml     # Desenvolvimento local
-├── 🚀 .github/workflows/     # CI/CD GitHub Actions
-├── 🔧 .env.example          # Template de configuração
-└── 📋 README.md             # Este arquivo
-```
-
-## 🔍 API Endpoints
-
-### Core Endpoints
-- `GET /api/health` - Health check
-- `GET /api/stats` - Estatísticas básicas
-- `GET /api/stats/detailed` - Estatísticas detalhadas
-- `WS /ws/stats` - WebSocket tempo real
-
-### Smart Analytics
-- `POST /api/ai/employees/register` - Cadastrar funcionário
-- `GET /api/ai/analytics/detailed` - Análise completa
-- `GET /api/ai/person/{id}` - Detalhes de pessoa
-- `WS /ws/smart-metrics` - Métricas inteligentes
-
-### Privacidade
-- `GET /api/privacy/settings` - Configurações LGPD
-- `GET /api/privacy/compliance-report` - Relatório conformidade
-- `POST /api/privacy/data-deletion` - Direito ao esquecimento
-
-## 🎯 Performance
-
-- **Detecção**: >90% precisão
-- **Reconhecimento Facial**: >95% precisão
-- **Re-identificação Comportamental**: >75% precisão
-- **Detecção de Grupos**: >90% precisão
-- **Análise Temporal**: >85% precisão na detecção de compras
+### Erro 401 API
+1. Verificar BRIDGE_API_KEY
+2. Confirmar headers Authorization
+3. Testar com curl
 
 ## 📞 Suporte
 
-- **📚 Documentação**: `/docs/`
-- **🔧 API Docs**: `http://localhost:8001/docs`
-- **🐛 Issues**: GitHub Issues
-- **💬 Discussões**: GitHub Discussions
+- 📖 **Documentação**: Consulte este README
+- 🔍 **Debug**: Use `/docs` para testar API
+- 📊 **Logs**: Container logs no EasyPanel
+- 🗄️ **Database**: Supabase Dashboard > Logs
 
-## 📄 Licença
+## 📄 Arquivos de Configuração
 
-Proprietary - Todos os direitos reservados
-
-## 🏆 Features Futuras
-
-- [ ] 😊 Análise de emoções
-- [ ] 📈 Previsão de demanda com ML
-- [ ] 💳 Integração com PDV
-- [ ] 📊 Dashboard executivo
-- [ ] 🔔 Alertas personalizados
-- [ ] 📱 App mobile
+- `.env.production` - Configurações para EasyPanel
+- `.env.local` - Configurações para localhost
+- `.env.example` - Template sem chaves
+- `Dockerfile.easypanel` - Docker otimizado
+- `docker-compose.yml` - Deploy local
 
 ---
 
-**Desenvolvido com ❤️ para revolucionar a análise de tráfego de pessoas**
+🎉 **ShopFlow pronto para uso com IA completa e câmera RTSP!**
