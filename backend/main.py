@@ -81,6 +81,10 @@ async def lifespan(app: FastAPI):
         smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
         await smart_engine.initialize()
         
+        # Definir no estado global
+        from core.app_state import set_smart_engine
+        set_smart_engine(smart_engine)
+        
         # Inicializar smart engine nos roteadores
         init_analytics(smart_engine)
         init_employees(smart_engine)

@@ -59,7 +59,11 @@ class Settings(BaseSettings):
     WS_HEARTBEAT_INTERVAL: int = 30
     
     class Config:
-        env_file = ".env"
+        env_file = ".env.local"  # Use .env.local for development
         extra = "allow"
 
 settings = Settings()
+
+def get_settings() -> Settings:
+    """Função para obter configurações"""
+    return settings

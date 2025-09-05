@@ -58,7 +58,7 @@ class CustomerSegmentation:
     """
     
     def __init__(self):
-        self.db = DatabaseManager()
+        self.db = None
         
         # Cache de perfis
         self.customer_profiles: Dict[str, CustomerProfile] = {}
@@ -107,7 +107,11 @@ class CustomerSegmentation:
     async def initialize(self):
         """Inicializar o sistema de segmentação"""
         try:
-            await self.db.ensure_connection()
+            # Initialize database connection
+            from ..config import get_settings
+            settings = get_settings()
+            self.db = DatabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await self.db.initialize()
             await self.load_customer_profiles()
             await self.update_segmentation()
             

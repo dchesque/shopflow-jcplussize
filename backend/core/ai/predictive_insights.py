@@ -67,7 +67,7 @@ class PredictiveEngine:
     """
     
     def __init__(self):
-        self.db = DatabaseManager()
+        self.db = None
         
         # Modelos de ML
         self.flow_model = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -117,7 +117,11 @@ class PredictiveEngine:
     async def initialize(self):
         """Inicializar o motor preditivo"""
         try:
-            await self.db.ensure_connection()
+            # Initialize database connection
+            from ..config import get_settings
+            settings = get_settings()
+            self.db = DatabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await self.db.initialize()
             await self.load_historical_data()
             await self.train_models()
             

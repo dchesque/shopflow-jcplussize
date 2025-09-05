@@ -5,7 +5,8 @@ Gerencia identificação de funcionários e re-identificação de clientes
 
 import cv2
 import numpy as np
-import face_recognition
+# import face_recognition  # Temporarily disabled until dlib is resolved
+face_recognition = None
 from typing import Dict, List, Optional, Tuple, Any
 import pickle
 import os
@@ -46,6 +47,10 @@ class FaceEncoder:
     async def initialize(self):
         """Inicializar o modelo de encoding"""
         try:
+            if face_recognition is None:
+                logger.warning("face_recognition library not available, using DeepFace only")
+                self.method = "deepface"
+            
             if self.method == "deepface" and DEEPFACE_AVAILABLE:
                 # DeepFace usa modelos pré-treinados automaticamente
                 self.initialized = True
@@ -65,10 +70,14 @@ class FaceEncoder:
                 
         except Exception as e:
             logger.error(f"Erro ao inicializar encoder {self.method}: {e}")
-            # Fallback para face_recognition
-            self.method = "face_recognition"
-            self.initialized = True
-            logger.info("✅ Fallback para face_recognition")
+            # Fallback para face_recognition apenas se disponível
+            if face_recognition is not None:
+                self.method = "face_recognition"
+                self.initialized = True
+                logger.info("✅ Fallback para face_recognition")
+            else:
+                logger.warning("⚠️ Face recognition não disponível - módulo desabilitado")
+                self.initialized = False
     
     async def encode_face(self, face_image: np.ndarray) -> Optional[np.ndarray]:
         """Extrair encoding da face"""
@@ -93,15 +102,17 @@ class FaceEncoder:
                 return None
                 
             else:
-                # face_recognition (padrão)
-                rgb_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-                face_locations = face_recognition.face_locations(rgb_image)
+                # face_recognition (se disponível)
+                if face_recognition is not None:
+                    rgb_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
+                    face_locations = face_recognition.face_locations(rgb_image)
+                    
+                    if len(face_locations) > 0:
+                        face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
+                        if len(face_encodings) > 0:
+                            return face_encodings[0]
                 
-                if len(face_locations) > 0:
-                    face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
-                    if len(face_encodings) > 0:
-                        return face_encodings[0]
-                
+                logger.warning("Face recognition não disponível")
                 return None
                 
         except Exception as e:
@@ -111,7 +122,7 @@ class FaceEncoder:
     def compare_faces(self, known_encoding: np.ndarray, unknown_encoding: np.ndarray, threshold: float = 0.6) -> bool:
         """Comparar duas faces"""
         try:
-            if self.method == "face_recognition":
+            if self.method == "face_recognition" and face_recognition is not None:
                 results = face_recognition.compare_faces([known_encoding], unknown_encoding, tolerance=threshold)
                 return results[0] if results else False
             else:
@@ -129,7 +140,7 @@ class FaceRecognitionManager:
     """
     
     def __init__(self):
-        self.db = DatabaseManager()
+        self.db = None  # Será inicializado posteriormente
         self.encoder = FaceEncoder(method="face_recognition")  # Mais estável
         
         # Cache de embeddings
@@ -160,8 +171,12 @@ class FaceRecognitionManager:
     async def initialize(self):
         """Inicializar o sistema de reconhecimento facial"""
         try:
+            # Inicializar database manager com configurações
+            settings = get_settings()
+            self.db = DatabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await self.db.initialize()
+            
             await self.encoder.initialize()
-            await self.db.ensure_connection()
             logger.info("✅ Face Recognition Manager inicializado")
             
         except Exception as e:

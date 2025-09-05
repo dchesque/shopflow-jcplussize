@@ -9,10 +9,11 @@ from datetime import datetime, date, timedelta
 import asyncio
 from loguru import logger
 
-from ...core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
-from ...core.ai.privacy_config import privacy_manager
-from ...core.database import DatabaseManager
-from ...models.api_models import BaseResponse
+from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
+from core.ai.privacy_config import privacy_manager
+from core.database import DatabaseManager
+from models.api_models import ApiResponse
+from core.app_state import get_smart_engine as get_global_engine
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -21,18 +22,19 @@ smart_engine: Optional[SmartAnalyticsEngine] = None
 
 async def get_smart_engine() -> SmartAnalyticsEngine:
     """Dependency para obter instância do Smart Analytics Engine"""
-    global smart_engine
-    if smart_engine is None:
+    engine = get_global_engine()
+    if engine is None:
         raise HTTPException(
             status_code=500,
             detail="Smart Analytics Engine não inicializado"
         )
-    return smart_engine
+    return engine
 
 def init_smart_engine(engine: SmartAnalyticsEngine):
     """Inicializar instância do Smart Analytics Engine"""
     global smart_engine
     smart_engine = engine
+    logger.info("🚀 Smart Analytics Engine inicializado no router analytics")
 
 @router.get("/smart-metrics", response_model=Dict[str, Any])
 async def get_smart_metrics(

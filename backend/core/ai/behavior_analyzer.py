@@ -61,7 +61,7 @@ class BehaviorAnalyzer:
     """
     
     def __init__(self):
-        self.db = DatabaseManager()
+        self.db = None
         
         # Tracking de pessoas
         self.person_tracks: Dict[int, PersonTrack] = {}
@@ -99,7 +99,9 @@ class BehaviorAnalyzer:
     async def initialize(self):
         """Inicializar o analisador"""
         try:
-            await self.db.ensure_connection()
+            # Initialize database connection
+            self.db = DatabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await self.db.initialize()
             await self._load_store_zones()
             self._initialize_heatmap()
             logger.success("✅ Behavior Analyzer pronto")

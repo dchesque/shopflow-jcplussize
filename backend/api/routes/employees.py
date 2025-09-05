@@ -14,10 +14,11 @@ import uuid
 from PIL import Image
 import io
 
-from ...core.ai.smart_analytics_engine import SmartAnalyticsEngine
-from ...core.ai.privacy_config import privacy_manager
-from ...core.database import DatabaseManager
-from ...models.api_models import BaseResponse
+from core.ai.smart_analytics_engine import SmartAnalyticsEngine
+from core.ai.privacy_config import privacy_manager
+from core.database import DatabaseManager
+from models.api_models import ApiResponse
+from core.app_state import get_smart_engine as get_global_engine
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -26,23 +27,24 @@ smart_engine: Optional[SmartAnalyticsEngine] = None
 
 async def get_smart_engine() -> SmartAnalyticsEngine:
     """Dependency para obter instância do Smart Analytics Engine"""
-    global smart_engine
-    if smart_engine is None:
+    engine = get_global_engine()
+    if engine is None:
         raise HTTPException(
             status_code=500,
             detail="Smart Analytics Engine não inicializado"
         )
-    if not smart_engine.face_manager:
+    if not engine.face_manager:
         raise HTTPException(
             status_code=503,
             detail="Sistema de reconhecimento facial não habilitado"
         )
-    return smart_engine
+    return engine
 
 def init_smart_engine(engine: SmartAnalyticsEngine):
     """Inicializar instância do Smart Analytics Engine"""
     global smart_engine
     smart_engine = engine
+    logger.info("🚀 Smart Analytics Engine inicializado no router employees")
 
 async def process_face_image(file: UploadFile) -> np.ndarray:
     """Processar imagem de face carregada"""
