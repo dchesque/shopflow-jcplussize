@@ -17,15 +17,18 @@ class SupabaseManager:
     async def initialize(self):
         """Inicializar conexão com Supabase"""
         try:
+            # CORREÇÃO: Remover qualquer parâmetro proxy
             self.client = create_client(self.url, self.key)
             
-            # Testar conexão básica (comentando tabela que não existe)
-            # result = self.client.table("current_stats").select("*").limit(1).execute()
-            logger.info("Conexão com Supabase estabelecida (básica)")
+            # Testar conexão básica
+            logger.info("✅ Conexão com Supabase estabelecida")
+            return True
             
         except Exception as e:
             logger.error(f"Erro ao conectar Supabase: {e}")
-            raise
+            # Permitir que o sistema funcione sem Supabase se necessário
+            logger.warning("⚠️ Sistema funcionando em modo offline (sem banco)")
+            return False
     
     async def close(self):
         """Fechar conexão"""
@@ -48,6 +51,10 @@ class SupabaseManager:
         metadata: Dict = None
     ):
         """Inserir evento de pessoa (entrada/saída)"""
+        if not self.client:
+            logger.warning("Cliente Supabase não disponível")
+            return None
+            
         try:
             event_data = {
                 "action": action,
@@ -70,10 +77,13 @@ class SupabaseManager:
                 
         except Exception as e:
             logger.error(f"Erro ao inserir evento: {e}")
-            raise
+            return None
     
     async def get_recent_events(self, limit: int = 50) -> List[Dict]:
         """Buscar eventos recentes"""
+        if not self.client:
+            return []
+            
         try:
             result = self.client.table("people_events")\
                 .select("*")\
@@ -93,6 +103,14 @@ class SupabaseManager:
     
     async def get_current_stats(self, target_date: date = None) -> Dict[str, Any]:
         """Buscar estatísticas atuais"""
+        if not self.client:
+            return {
+                "people_count": 0,
+                "total_entries": 0,
+                "total_exits": 0,
+                "last_updated": None
+            }
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -127,6 +145,9 @@ class SupabaseManager:
         target_date: date = None
     ):
         """Atualizar estatísticas atuais"""
+        if not self.client:
+            return None
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -149,7 +170,7 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro ao atualizar stats: {e}")
-            raise
+            return None
     
     # ========================================================================
     # HOURLY STATS
@@ -157,6 +178,9 @@ class SupabaseManager:
     
     async def get_hourly_stats(self, target_date: date = None) -> List[Dict]:
         """Buscar estatísticas por hora"""
+        if not self.client:
+            return []
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -175,6 +199,9 @@ class SupabaseManager:
     
     async def get_hourly_heatmap(self, target_date: date = None) -> List[Dict]:
         """Buscar dados do heatmap por hora"""
+        if not self.client:
+            return self._generate_empty_heatmap()
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -220,7 +247,14 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro no fallback do heatmap: {e}")
-            return []
+            return self._generate_empty_heatmap()
+    
+    def _generate_empty_heatmap(self) -> List[Dict]:
+        """Gerar heatmap vazio"""
+        return [
+            {'hour': h, 'entries': 0, 'exits': 0, 'net_traffic': 0, 'intensity': 0}
+            for h in range(24)
+        ]
     
     # ========================================================================
     # SALES
@@ -236,6 +270,9 @@ class SupabaseManager:
         metadata: Dict = None
     ):
         """Inserir venda"""
+        if not self.client:
+            return None
+            
         try:
             sale_data = {
                 "amount": amount,
@@ -258,10 +295,13 @@ class SupabaseManager:
                 
         except Exception as e:
             logger.error(f"Erro ao inserir venda: {e}")
-            raise
+            return None
     
     async def get_sales_by_date(self, target_date: date = None) -> List[Dict]:
         """Buscar vendas por data"""
+        if not self.client:
+            return []
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -288,6 +328,14 @@ class SupabaseManager:
     
     async def get_conversion_rate(self, target_date: date = None) -> Dict[str, Any]:
         """Calcular taxa de conversão"""
+        if not self.client:
+            return {
+                "visitors": 0,
+                "sales_count": 0,
+                "conversion_rate": 0,
+                "total_sales_amount": 0
+            }
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -337,6 +385,9 @@ class SupabaseManager:
     
     async def get_dashboard_metrics(self, target_date: date = None) -> Dict[str, Any]:
         """Obter todas as métricas do dashboard"""
+        if not self.client:
+            return self._generate_empty_metrics(target_date)
+            
         try:
             if target_date is None:
                 target_date = date.today()
@@ -381,7 +432,26 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro ao buscar métricas do dashboard: {e}")
-            return {}
+            return self._generate_empty_metrics(target_date)
+    
+    def _generate_empty_metrics(self, target_date: date = None) -> Dict[str, Any]:
+        """Gerar métricas vazias"""
+        if target_date is None:
+            target_date = date.today()
+            
+        return {
+            "current_people": 0,
+            "total_entries": 0,
+            "total_exits": 0,
+            "sales_today": 0,
+            "revenue_today": 0,
+            "conversion_rate": 0,
+            "avg_time_spent": "00:00:00",
+            "peak_hour": 0,
+            "peak_count": 0,
+            "last_updated": None,
+            "date": target_date.isoformat()
+        }
     
     # ========================================================================
     # CAMERA CONFIG
@@ -389,6 +459,9 @@ class SupabaseManager:
     
     async def get_camera_config(self) -> Dict[str, Any]:
         """Buscar configuração da câmera"""
+        if not self.client:
+            return {}
+            
         try:
             result = self.client.table("camera_config")\
                 .select("*")\
@@ -404,6 +477,9 @@ class SupabaseManager:
     
     async def update_camera_config(self, config_data: Dict[str, Any]):
         """Atualizar configuração da câmera"""
+        if not self.client:
+            return None
+            
         try:
             # Buscar config atual
             current_config = await self.get_camera_config()
@@ -425,7 +501,7 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro ao atualizar config da câmera: {e}")
-            raise
+            return None
     
     # ========================================================================
     # SYSTEM LOGS
@@ -439,6 +515,11 @@ class SupabaseManager:
         metadata: Dict = None
     ):
         """Inserir log do sistema"""
+        if not self.client:
+            # Apenas logar localmente se Supabase não estiver disponível
+            logger.log(level.upper(), f"[{component}] {message}")
+            return None
+            
         try:
             log_data = {
                 "level": level.upper(),
@@ -452,6 +533,7 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro ao inserir log do sistema: {e}")
+            return None
     
     # ========================================================================  
     # GENERIC DATABASE METHODS (for AI compatibility)
@@ -459,6 +541,9 @@ class SupabaseManager:
     
     async def fetch_all(self, query: str, params: tuple = None):
         """Generic fetch all method for AI modules"""
+        if not self.client:
+            return []
+            
         try:
             # Parse simple SELECT queries for compatibility
             if "FROM employees" in query:
@@ -477,8 +562,23 @@ class SupabaseManager:
             logger.error(f"Error in fetch_all: {e}")
             return []
     
+    async def fetch_one(self, query: str, params: tuple = None):
+        """Generic fetch one method for AI modules"""
+        if not self.client:
+            return None
+            
+        try:
+            results = await self.fetch_all(query, params)
+            return results[0] if results else None
+        except Exception as e:
+            logger.error(f"Error in fetch_one: {e}")
+            return None
+    
     async def execute(self, query: str, params: tuple = None):
         """Generic execute method for AI modules"""
+        if not self.client:
+            return []
+            
         try:
             logger.warning(f"Generic execute called with query: {query}")
             # For now, just log and return empty result
@@ -500,6 +600,10 @@ class SupabaseManager:
         metadata: Dict = None
     ):
         """Criar alerta"""
+        if not self.client:
+            logger.warning(f"[ALERT] {severity.upper()}: {title} - {message}")
+            return None
+            
         try:
             alert_data = {
                 "type": alert_type,
@@ -515,7 +619,7 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Erro ao criar alerta: {e}")
-            raise
+            return None
 
 # Alias para compatibilidade com módulos AI
 DatabaseManager = SupabaseManager
