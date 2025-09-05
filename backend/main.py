@@ -85,11 +85,7 @@ async def lifespan(app: FastAPI):
         from core.app_state import set_smart_engine
         set_smart_engine(smart_engine)
         
-        # Inicializar smart engine nos roteadores
-        init_analytics(smart_engine)
-        init_employees(smart_engine)
-        
-        logger.success("✅ Smart Analytics Engine inicializado")
+        logger.success("✅ Smart Analytics Engine inicializado e registrado globalmente")
         
         # Criar diretórios necessários
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
@@ -135,8 +131,8 @@ from api.routes.camera import router as camera_router
 app.include_router(camera_router)
 
 # Incluir novas rotas de Analytics e Employees
-from api.routes.analytics import router as analytics_router, init_smart_engine as init_analytics
-from api.routes.employees import router as employees_router, init_smart_engine as init_employees
+from api.routes.analytics import router as analytics_router
+from api.routes.employees import router as employees_router
 
 app.include_router(analytics_router)
 app.include_router(employees_router)

@@ -195,7 +195,13 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\core/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)"
     ],
     "deny": [],
     "ask": []

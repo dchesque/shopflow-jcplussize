@@ -11,14 +11,12 @@ from loguru import logger
 
 from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
 from core.ai.privacy_config import privacy_manager
-from core.database import DatabaseManager
+from core.database import SupabaseManager
+from core.config import settings
 from models.api_models import ApiResponse
 from core.app_state import get_smart_engine as get_global_engine
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
-
-# Instância global do Smart Analytics Engine
-smart_engine: Optional[SmartAnalyticsEngine] = None
 
 async def get_smart_engine() -> SmartAnalyticsEngine:
     """Dependency para obter instância do Smart Analytics Engine"""
@@ -30,11 +28,6 @@ async def get_smart_engine() -> SmartAnalyticsEngine:
         )
     return engine
 
-def init_smart_engine(engine: SmartAnalyticsEngine):
-    """Inicializar instância do Smart Analytics Engine"""
-    global smart_engine
-    smart_engine = engine
-    logger.info("🚀 Smart Analytics Engine inicializado no router analytics")
 
 @router.get("/smart-metrics", response_model=Dict[str, Any])
 async def get_smart_metrics(
@@ -120,7 +113,8 @@ async def get_behavior_patterns(
     """
     try:
         # Obter dados históricos do banco
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         
         # Calcular período
         end_time = datetime.now()
@@ -388,7 +382,9 @@ async def get_analytics_summary(
         )
 
 @router.get("/health", response_model=Dict[str, Any])
-async def get_analytics_health():
+async def get_analytics_health(
+    engine: SmartAnalyticsEngine = Depends(get_smart_engine)
+):
     """
     Verificar saúde do sistema de analytics
     
@@ -398,14 +394,12 @@ async def get_analytics_health():
         - Erros recentes
     """
     try:
-        global smart_engine
-        
         health_status = {
-            "analytics_engine": smart_engine is not None,
-            "face_recognition": smart_engine.face_manager is not None if smart_engine else False,
-            "behavior_analysis": smart_engine.behavior_analyzer is not None if smart_engine else False,
-            "segmentation": smart_engine.segmentation is not None if smart_engine else False,
-            "predictions": smart_engine.predictive is not None if smart_engine else False,
+            "analytics_engine": engine is not None,
+            "face_recognition": engine.face_manager is not None if engine else False,
+            "behavior_analysis": engine.behavior_analyzer is not None if engine else False,
+            "segmentation": engine.segmentation is not None if engine else False,
+            "predictions": engine.predictive is not None if engine else False,
             "privacy_manager": privacy_manager is not None,
         }
         
@@ -416,7 +410,7 @@ async def get_analytics_health():
             "data": {
                 "overall_health": overall_health,
                 "modules": health_status,
-                "last_metrics_update": smart_engine.last_metrics.timestamp.isoformat() if smart_engine and smart_engine.last_metrics else None,
+                "last_metrics_update": engine.last_metrics.timestamp.isoformat() if engine and engine.last_metrics else None,
                 "checked_at": datetime.now().isoformat()
             }
         }

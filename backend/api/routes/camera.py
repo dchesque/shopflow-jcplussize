@@ -13,17 +13,17 @@ import os
 import asyncio
 from loguru import logger
 
-# Imports internos (assumindo a estrutura existente)
+# Imports internos
 from core.detector import YOLOPersonDetector
-# from core.ai.smart_analytics_engine import SmartAnalyticsEngine
+from core.ai.smart_analytics_engine import SmartAnalyticsEngine  # DESCOMENTAR
 from core.database import SupabaseManager
+from core.app_state import get_smart_engine  # ADICIONAR
 
 router = APIRouter(prefix="/api/camera", tags=["camera"])
 security = HTTPBearer()
 
 # Instância global do detector
 detector = None
-analytics_engine = None
 
 async def get_detector():
     """Singleton do detector YOLO11"""
@@ -33,13 +33,15 @@ async def get_detector():
         await detector.load_model()
     return detector
 
-async def get_analytics_engine():
-    """Singleton do Smart Analytics Engine"""
-    global analytics_engine
-    if analytics_engine is None:
-        analytics_engine = SmartAnalyticsEngine()
-        await analytics_engine.initialize()
-    return analytics_engine
+async def get_analytics_engine() -> SmartAnalyticsEngine:
+    """Obter Smart Analytics Engine do estado global"""
+    engine = get_smart_engine()
+    if engine is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Smart Analytics Engine não está inicializado"
+        )
+    return engine
 
 async def verify_bridge_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verifica autenticação da bridge"""
@@ -98,7 +100,9 @@ async def process_camera_frame(
             groups_detected = await analytics_instance.group_detector.detect_groups(smart_detections)
         
         # Salva no Supabase
-        supabase = get_supabase_client()
+        # TODO: Implementar get_supabase_client ou usar o manager global
+        from core.database import SupabaseManager
+        supabase = SupabaseManager()
         try:
             # Insere evento no banco
             event_data = {
@@ -169,11 +173,11 @@ async def camera_status():
         
         return {
             'detector_loaded': detector_instance.model is not None,
-            'analytics_initialized': analytics_instance.face_registry is not None,
+            'analytics_initialized': analytics_instance.face_manager is not None,
             'modules': {
-                'face_recognition': analytics_instance.privacy_manager.validate_operation('face_recognition'),
-                'behavior_analysis': analytics_instance.privacy_manager.validate_operation('behavior_analysis'),
-                'group_detection': analytics_instance.privacy_manager.validate_operation('group_analysis'),
+                'face_recognition': analytics_instance.face_manager is not None,
+                'behavior_analysis': analytics_instance.behavior_analyzer is not None,
+                'group_detection': analytics_instance.behavior_analyzer is not None,
                 'temporal_analysis': True
             },
             'timestamp': datetime.now().isoformat()

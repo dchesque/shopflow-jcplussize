@@ -16,14 +16,12 @@ import io
 
 from core.ai.smart_analytics_engine import SmartAnalyticsEngine
 from core.ai.privacy_config import privacy_manager
-from core.database import DatabaseManager
+from core.database import SupabaseManager
+from core.config import settings
 from models.api_models import ApiResponse
 from core.app_state import get_smart_engine as get_global_engine
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
-
-# Instância global do Smart Analytics Engine
-smart_engine: Optional[SmartAnalyticsEngine] = None
 
 async def get_smart_engine() -> SmartAnalyticsEngine:
     """Dependency para obter instância do Smart Analytics Engine"""
@@ -40,11 +38,6 @@ async def get_smart_engine() -> SmartAnalyticsEngine:
         )
     return engine
 
-def init_smart_engine(engine: SmartAnalyticsEngine):
-    """Inicializar instância do Smart Analytics Engine"""
-    global smart_engine
-    smart_engine = engine
-    logger.info("🚀 Smart Analytics Engine inicializado no router employees")
 
 async def process_face_image(file: UploadFile) -> np.ndarray:
     """Processar imagem de face carregada"""
@@ -142,7 +135,8 @@ async def register_employee(
         )
         
         # Salvar dados adicionais no banco
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         try:
             await db.execute("""
                 INSERT INTO employees (employee_id, name, department, position, registered_at, is_active)
@@ -218,7 +212,8 @@ async def remove_employee(
             )
         
         # Remover/desativar no banco de dados
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         try:
             # Marcar como inativo ao invés de deletar (para auditoria)
             await db.execute("""
@@ -255,7 +250,8 @@ async def remove_employee(
 @router.get("/list", response_model=Dict[str, Any])
 async def list_employees(
     active_only: bool = True,
-    include_last_seen: bool = True
+    include_last_seen: bool = True,
+    engine: SmartAnalyticsEngine = Depends(get_smart_engine)
 ):
     """
     Listar funcionários registrados
@@ -269,7 +265,8 @@ async def list_employees(
         - Estatísticas gerais
     """
     try:
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         
         # Construir query
         base_query = "SELECT * FROM employees"
@@ -318,7 +315,7 @@ async def list_employees(
                     "total_registered": len(employees_list),
                     "active_employees": active_count,
                     "inactive_employees": len(employees_list) - active_count,
-                    "face_recognition_enabled": smart_engine.enable_face_recognition if smart_engine else False
+                    "face_recognition_enabled": engine.enable_face_recognition if engine else False
                 },
                 "generated_at": datetime.now().isoformat()
             }
@@ -349,7 +346,8 @@ async def get_employee_details(
         - Histórico de avistamentos
     """
     try:
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         
         # Buscar dados do funcionário
         try:
@@ -444,7 +442,8 @@ async def update_employee(
         - Status da operação
     """
     try:
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         
         # Verificar se funcionário existe
         try:
@@ -555,7 +554,8 @@ async def get_employee_presence_analytics(
         - Estatísticas de pontualidade
     """
     try:
-        db = DatabaseManager()
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
         
         # Período de análise
         start_date = datetime.now() - timedelta(days=days)
