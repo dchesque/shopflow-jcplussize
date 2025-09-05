@@ -1,7 +1,7 @@
-# Multi-stage build para EasyPanel com AI otimizado
-FROM python:3.11-slim AS builder
+# Multi-stage build para otimização
+FROM python:3.11-slim as builder
 
-# Instalar dependências de sistema completas para compilação
+# Instalar dependências de sistema para compilação
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
@@ -21,11 +21,10 @@ RUN apt-get update && apt-get install -y \
     libtiff-dev \
     gfortran \
     openexr \
-    libatlas-base-dev \
     python3-numpy \
-    libtbb2 \
+    libtbbmalloc2 \
     libtbb-dev \
-    libdc1394-22-dev \
+    libdc1394-dev \
     libopenblas-dev \
     liblapack-dev \
     libhdf5-dev \
@@ -41,27 +40,21 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar dlib primeiro (necessário para face recognition)
-RUN pip install --no-cache-dir dlib
+# Criar e ativar ambiente virtual
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /app
+# Atualizar pip
+RUN pip install --upgrade pip setuptools wheel
 
-# Copiar e instalar dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Copiar requirements
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Pre-baixar modelos necessários
-RUN wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt -O yolo11n.pt
+# Stage de produção
+FROM python:3.11-slim as production
 
-# Stage de produção otimizado
-FROM python:3.11-slim AS production
-
-LABEL maintainer="ShopFlow Team"
-LABEL description="ShopFlow Backend with Smart AI Analytics"
-LABEL version="2.0.0"
-
-# Instalar apenas dependências runtime essenciais
+# Instalar apenas runtime dependencies
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -70,64 +63,50 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libgfortran5 \
-    libatlas-base-dev \
-    libopenblas-dev \
-    liblapack-dev \
+    libopenblas0 \
+    liblapack3 \
     libjpeg62-turbo \
     libpng16-16 \
-    libtiff5 \
+    libtiff6 \
     curl \
     wget \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# Copiar venv do builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Configurar diretório de trabalho
 WORKDIR /app
 
-# Copiar bibliotecas compiladas (incluindo dlib)
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copiar modelo YOLO já baixado
-COPY --from=builder /app/yolo11n.pt ./yolo11n.pt
+# Criar diretórios necessários
+RUN mkdir -p logs uploads temp face_embeddings cache && \
+    chmod -R 777 logs uploads temp face_embeddings cache
 
 # Copiar código da aplicação
-COPY . .
+COPY . /app/
 
-# Criar diretórios necessários para AI
-RUN mkdir -p logs uploads temp face_embeddings models cache && \
-    chmod -R 755 logs uploads temp face_embeddings models cache
+# Download do modelo YOLO se não existir
+RUN if [ ! -f "yolo11n.pt" ]; then \
+    wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt || \
+    echo "Warning: Failed to download YOLO model"; \
+    fi
 
-# Criar usuário não-root para segurança
-RUN groupadd -r shopflow && useradd -r -g shopflow shopflow && \
-    chown -R shopflow:shopflow /app
-
-# Mudar para usuário não-root
-USER shopflow
-
-# Variáveis de ambiente otimizadas para EasyPanel
+# Variáveis de ambiente (serão sobrescritas pelo EasyPanel)
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app \
-    NODE_ENV=production \
     API_HOST=0.0.0.0 \
     API_PORT=3333 \
-    API_DEBUG=false \
-    LOG_LEVEL=INFO
+    NODE_ENV=production
 
-# Configurações de performance para AI
-ENV OMP_NUM_THREADS=2 \
-    OPENBLAS_NUM_THREADS=2 \
-    MKL_NUM_THREADS=2 \
-    WORKERS=1 \
-    WORKER_TIMEOUT=120
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${API_PORT}/api/health || exit 1
 
-# Health check para EasyPanel
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3333/api/health || exit 1
-
-# Expor porta EasyPanel
+# Expor porta
 EXPOSE 3333
 
-# Comando otimizado para produção
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3333", "--workers", "1", "--access-log", "--proxy-headers"]
+# Comando de inicialização
+CMD ["python", "main.py"]
