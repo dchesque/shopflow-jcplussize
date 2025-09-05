@@ -61,7 +61,7 @@ logs/
 # Data directories (runtime volumes)
 uploads/
 face_embeddings/
-models/
+# models/ - NÃO IGNORAR - contém modelos Python necessários
 
 # Git
 .git/

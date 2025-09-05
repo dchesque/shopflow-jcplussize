@@ -201,7 +201,9 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
-      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)"
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize/**)"
     ],
     "deny": [],
     "ask": []
