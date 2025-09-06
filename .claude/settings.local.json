@@ -203,7 +203,18 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend\\api\\routes/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\backend/**)",
-      "Read(/C:\\Workspace\\shopflow-jcplussize/**)"
+      "Read(/C:\\Workspace\\shopflow-jcplussize/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)",
+      "Read(/C:\\Workspace\\shopflow-jcplussize\\bridge/**)"
     ],
     "deny": [],
     "ask": []
