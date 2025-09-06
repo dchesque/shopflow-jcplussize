@@ -1,12 +1,25 @@
-import './globals.css'
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import './globals.css'
+import { cn } from '@/lib/utils'
+import { QueryProvider } from '@/components/providers/QueryProvider'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { Toaster } from 'sonner'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter'
+})
 
-export const metadata: Metadata = {
-  title: 'ShopFlow - Sistema de Teste',
-  description: 'Verificação de funcionalidades do backend',
+export const metadata = {
+  title: 'ShopFlow - Smart Analytics',
+  description: 'Sistema inteligente de contagem e análise de pessoas na loja',
+  keywords: 'analytics, retail, people counting, AI, computer vision',
+  authors: [{ name: 'ShopFlow Team' }],
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -15,9 +28,33 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        {children}
+    <html lang="pt-BR" className="dark">
+      <body 
+        className={cn(
+          'min-h-screen bg-neutral-950 antialiased',
+          inter.variable
+        )}
+      >
+        {/* Background gradients */}
+        <div className="fixed inset-0 bg-gradient-to-br from-red-500/5 via-neutral-950 to-purple-500/5" />
+        
+        {/* Grid pattern */}
+        <div className="fixed inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.02]" />
+        
+        {/* Main content */}
+        <div className="relative">
+          <QueryProvider>
+            <ThemeProvider>
+              {children}
+              <Toaster
+                position="top-right"
+                theme="dark"
+                richColors
+                closeButton
+              />
+            </ThemeProvider>
+          </QueryProvider>
+        </div>
       </body>
     </html>
   )
