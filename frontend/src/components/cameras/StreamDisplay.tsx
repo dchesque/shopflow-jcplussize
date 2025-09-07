@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Camera, WifiOff, RefreshCw } from 'lucide-react'
 import { Camera as CameraType } from '@/types'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 interface StreamDisplayProps {
   camera: CameraType

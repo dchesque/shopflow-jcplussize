@@ -285,11 +285,11 @@ export function useRealTimeFlowData(timeRange: '24h' | '7d' | '30d' = '24h') {
         const hour = time.getHours()
         
         // Simulate realistic patterns
-        let baseCustomers = hour >= 9 && hour <= 21 ? 
+        const baseCustomers = hour >= 9 && hour <= 21 ? 
           Math.round(15 + Math.sin((hour - 9) / 12 * Math.PI) * 10) : 
           Math.round(2 + Math.random() * 3)
         
-        let baseEmployees = hour >= 8 && hour <= 22 ? 
+        const baseEmployees = hour >= 8 && hour <= 22 ? 
           Math.round(3 + Math.random() * 2) : 
           Math.round(1 + Math.random())
         

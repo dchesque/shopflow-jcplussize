@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { Camera as CameraType, Detection } from '@/types'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 interface CameraGridProps {
   cameras: CameraType[]

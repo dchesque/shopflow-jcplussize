@@ -292,7 +292,6 @@ export default function CameraAnalyticsPage({ params }: CameraAnalyticsPageProps
                   <CardContent>
                     <PeopleFlowChart 
                       data={analytics?.daily_metrics}
-                      height={300}
                     />
                   </CardContent>
                 </Card>
@@ -304,7 +303,7 @@ export default function CameraAnalyticsPage({ params }: CameraAnalyticsPageProps
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {analytics?.daily_metrics?.peak_hours?.map((hour, index) => (
+                        {analytics?.daily_metrics?.peak_hours?.map((hour: string, index: number) => (
                           <div key={index} className="flex items-center gap-2">
                             <Activity className="w-3 h-3 text-blue-600" />
                             <span className="text-sm font-mono">{hour}</span>
@@ -355,7 +354,6 @@ export default function CameraAnalyticsPage({ params }: CameraAnalyticsPageProps
                   <CardContent>
                     <HeatmapChart 
                       data={analytics?.behavior_patterns?.hotspots}
-                      height={400}
                     />
                   </CardContent>
                 </Card>
@@ -372,7 +370,6 @@ export default function CameraAnalyticsPage({ params }: CameraAnalyticsPageProps
                   <CardContent>
                     <BehaviorPatternsChart 
                       data={analytics?.behavior_patterns}
-                      height={300}
                     />
                   </CardContent>
                 </Card>
@@ -389,7 +386,6 @@ export default function CameraAnalyticsPage({ params }: CameraAnalyticsPageProps
                   <CardContent>
                     <PredictionsChart 
                       data={analytics?.predictions}
-                      height={250}
                     />
                     
                     <Separator className="my-4" />

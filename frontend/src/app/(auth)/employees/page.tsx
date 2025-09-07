@@ -137,21 +137,21 @@ export default function EmployeesPage() {
             
             <div className="flex gap-2">
               <Button
-                variant={filterBy === 'all' ? 'default' : 'outline'}
+                variant={filterBy === 'all' ? 'primary' : 'outline'}
                 onClick={() => setFilterBy('all')}
                 size="sm"
               >
                 Todos
               </Button>
               <Button
-                variant={filterBy === 'active' ? 'default' : 'outline'}
+                variant={filterBy === 'active' ? 'primary' : 'outline'}
                 onClick={() => setFilterBy('active')}
                 size="sm"
               >
                 Ativos
               </Button>
               <Button
-                variant={filterBy === 'inactive' ? 'default' : 'outline'}
+                variant={filterBy === 'inactive' ? 'primary' : 'outline'}
                 onClick={() => setFilterBy('inactive')}
                 size="sm"
               >

@@ -28,9 +28,15 @@ export interface Camera {
   name: string
   location: string
   rtsp_url: string
-  status: 'online' | 'offline'
+  ip_address: string
+  port: number
+  username?: string
+  status: 'online' | 'offline' | 'error'
   fps: number
   created_at: string
+  last_seen?: string
+  stream_url?: string
+  resolution?: string
   detections?: Detection[]
   peopleCount: number
   customersCount: number

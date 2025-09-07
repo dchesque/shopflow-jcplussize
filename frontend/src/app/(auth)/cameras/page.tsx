@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { CameraGrid } from '@/components/cameras/CameraGrid'
 import { useCameras, useCameraHealth } from '@/hooks/useCameras'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { Camera as CameraType } from '@/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'

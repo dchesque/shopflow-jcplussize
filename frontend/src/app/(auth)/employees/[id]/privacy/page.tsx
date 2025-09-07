@@ -160,7 +160,10 @@ export default function EmployeePrivacyPage() {
   }
 
   const getConsentValue = (key: keyof LGPDConsent): boolean => {
-    return consentUpdates[key] ?? employee.lgpd_consent?.[key] ?? false
+    const updateValue = consentUpdates[key]
+    if (typeof updateValue === 'boolean') return updateValue
+    const employeeValue = employee.lgpd_consent?.[key]
+    return typeof employeeValue === 'boolean' ? employeeValue : false
   }
 
   return (
@@ -396,7 +399,7 @@ export default function EmployeePrivacyPage() {
                     <li>• Dados biométricos e fotos serão excluídos</li>
                     <li>• Histórico de reconhecimento facial será apagado</li>
                     <li>• Esta ação não pode ser desfeita</li>
-                    <li>• O funcionário será marcado como "dados removidos"</li>
+                    <li>• O funcionário será marcado como &quot;dados removidos&quot;</li>
                   </ul>
                 </div>
               </div>
@@ -405,7 +408,7 @@ export default function EmployeePrivacyPage() {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   disabled={!dataProcessingRequest.trim()}
                   className="w-full"
                 >
