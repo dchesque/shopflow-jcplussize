@@ -253,7 +253,8 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\app\\(auth)/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\layout/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
-      "Bash(wmic process where:*)"
+      "Bash(wmic process where:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": []

@@ -15,7 +15,12 @@ import {
   Monitor,
   Cog,
   Target,
-  GitCompare
+  GitCompare,
+  Shield,
+  Key,
+  Store,
+  Globe,
+  Bell
 } from 'lucide-react'
 
 export const MENU_ITEMS = [
@@ -71,6 +76,14 @@ export const MENU_ITEMS = [
     label: 'Configurações',
     href: '/settings',
     icon: Settings,
+    children: [
+      { id: 'privacy', label: 'Privacidade', href: '/settings/privacy', icon: Shield },
+      { id: 'users', label: 'Usuários', href: '/settings/users', icon: Users },
+      { id: 'security', label: 'Segurança', href: '/settings/security', icon: Key },
+      { id: 'store', label: 'Loja', href: '/settings/store', icon: Store },
+      { id: 'integrations', label: 'Integrações', href: '/settings/integrations', icon: Globe },
+      { id: 'notifications', label: 'Notificações', href: '/settings/notifications', icon: Bell },
+    ]
   },
 ]
 
