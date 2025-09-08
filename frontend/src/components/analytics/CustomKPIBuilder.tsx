@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { 
   Plus, Calculator, Target, TrendingUp, AlertTriangle, 
   CheckCircle2, Edit3, Trash2, Copy, Save, PlayCircle,
-  BarChart3, PieChart, LineChart, Activity, Zap,
+  BarChart3, PieChart, LineChart as LineChartIcon, Activity, Zap,
   Users, ShoppingBag, DollarSign, Clock, Eye, Star
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
@@ -77,15 +77,25 @@ export function CustomKPIBuilder({
   const [isEditing, setIsEditing] = useState(false)
 
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string
+    description: string
+    formula: string
+    category: string
+    unit: string
+    chartType: 'line' | 'bar' | 'area' | 'gauge'
+    aggregationType: 'sum' | 'avg' | 'count' | 'max' | 'min'
+    timeframe: 'realtime' | 'hourly' | 'daily' | 'weekly' | 'monthly'
+    isActive: boolean
+  }>({
     name: '',
     description: '',
     formula: '',
     category: 'sales',
     unit: 'number',
-    chartType: 'line' as const,
-    aggregationType: 'avg' as const,
-    timeframe: 'daily' as const,
+    chartType: 'line',
+    aggregationType: 'avg',
+    timeframe: 'daily',
     isActive: true
   })
 

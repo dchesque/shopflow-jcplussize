@@ -254,7 +254,9 @@
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend\\src\\components\\layout/**)",
       "Read(/C:\\Workspace\\shopflow-jcplussize\\frontend/**)",
       "Bash(wmic process where:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(ls:*)",
+      "Bash(npm run type-check:*)"
     ],
     "deny": [],
     "ask": []

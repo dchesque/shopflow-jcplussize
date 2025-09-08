@@ -319,7 +319,7 @@ export function useExportReport() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `relatorio-${format(new Date(), 'yyyy-MM-dd')}.${format}`
+      link.download = `relatorio-${new Date().toISOString().split('T')[0]}.${format}`
       document.body.appendChild(link)
       link.click()
       window.URL.revokeObjectURL(url)
