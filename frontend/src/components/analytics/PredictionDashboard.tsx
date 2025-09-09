@@ -157,7 +157,7 @@ export function PredictionDashboard({
   
   useEffect(() => {
     setForecastData(generateForecastData(selectedPrediction))
-  }, [selectedPrediction, timeHorizon])
+  }, [selectedPrediction, timeHorizon, generateForecastData])
   
   useEffect(() => {
     if (autoRefresh) {
@@ -166,7 +166,7 @@ export function PredictionDashboard({
       }, 60000) // Refresh every minute
       return () => clearInterval(interval)
     }
-  }, [autoRefresh, selectedPrediction])
+  }, [autoRefresh, selectedPrediction, generateForecastData])
   
   const handleRefresh = async () => {
     setIsRefreshing(true)

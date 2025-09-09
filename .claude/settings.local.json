@@ -256,7 +256,8 @@
       "Bash(wmic process where:*)",
       "Bash(cmd /c:*)",
       "Bash(ls:*)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
