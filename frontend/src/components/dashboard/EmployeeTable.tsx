@@ -75,8 +75,8 @@ export function EmployeeTable({ employees, isLoading, onRefresh }: EmployeeTable
     if (!employees) return []
     
     return [...employees].sort((a, b) => {
-      let aValue: any = a[sortField]
-      let bValue: any = b[sortField]
+      let aValue: any = (a as any)[sortField]
+      let bValue: any = (b as any)[sortField]
       
       // Handle date sorting
       if (sortField === 'created_at') {
@@ -341,3 +341,5 @@ export function EmployeeTable({ employees, isLoading, onRefresh }: EmployeeTable
     </>
   )
 }
+
+export default EmployeeTable

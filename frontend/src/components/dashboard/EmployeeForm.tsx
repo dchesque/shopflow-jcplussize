@@ -122,11 +122,15 @@ export function EmployeeForm({ onSuccess, initialData, isEdit = false }: Employe
     setFormData(prev => ({ ...prev, ...updates }))
   }
 
-  const updateNestedData = (key: keyof EmployeeCreateRequest, updates: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [key]: { ...prev[key], ...updates }
-    }))
+  const updateNestedData = (key: keyof EmployeeCreateRequest, updates: Record<string, any>) => {
+    setFormData(prev => {
+      const currentValue = prev[key]
+      const isObject = currentValue && typeof currentValue === 'object'
+      return {
+        ...prev,
+        [key]: isObject ? { ...currentValue, ...updates } : { ...updates }
+      }
+    })
   }
 
   const currentStepIndex = STEPS.findIndex(step => step.key === currentStep)
@@ -176,7 +180,7 @@ export function EmployeeForm({ onSuccess, initialData, isEdit = false }: Employe
         }
       })
 
-      const url = isEdit ? `/api/employees/${initialData?.id}` : '/api/employees/register'
+      const url = isEdit ? `/api/employees/${(initialData as any)?.id}` : '/api/employees/register'
       const method = isEdit ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
@@ -193,7 +197,7 @@ export function EmployeeForm({ onSuccess, initialData, isEdit = false }: Employe
       onSuccess(employee)
     } catch (error) {
       console.error('Erro ao salvar funcionário:', error)
-      alert(`Erro ao ${isEdit ? 'atualizar' : 'cadastrar'} funcionário: ${error.message}`)
+      alert(`Erro ao ${isEdit ? 'atualizar' : 'cadastrar'} funcionário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -451,7 +455,7 @@ export function EmployeeForm({ onSuccess, initialData, isEdit = false }: Employe
           <div className="space-y-4">
             <PhotoUpload
               onPhotoSelected={(file) => updateFormData({ photo_file: file })}
-              currentPhotoUrl={initialData?.photo_url}
+              currentPhotoUrl={(initialData as any)?.photo_url}
               employeeName={formData.full_name}
             />
             <p className="text-sm text-gray-600">

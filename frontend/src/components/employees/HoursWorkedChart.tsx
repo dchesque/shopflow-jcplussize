@@ -186,14 +186,14 @@ export function HoursWorkedChart({
 
           <div className="flex gap-1 border rounded-lg p-1">
             <Button
-              variant={chartType === 'bar' ? 'default' : 'ghost'}
+              variant={chartType === 'bar' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setChartType('bar')}
             >
               Barras
             </Button>
             <Button
-              variant={chartType === 'line' ? 'default' : 'ghost'}
+              variant={chartType === 'line' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setChartType('line')}
             >

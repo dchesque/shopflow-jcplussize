@@ -53,8 +53,8 @@ const cameraSchema = z.object({
   resolution: z.string().optional(),
   fps: z.number().min(1).max(60).optional(),
   quality: z.enum(['low', 'medium', 'high']).optional(),
-  motion_detection: z.boolean().default(true),
-  face_recognition: z.boolean().default(true),
+  motion_detection: z.boolean(),
+  face_recognition: z.boolean(),
   privacy_zones: z.array(z.object({
     x: z.number(),
     y: z.number(),
@@ -62,7 +62,7 @@ const cameraSchema = z.object({
     height: z.number(),
     name: z.string()
   })).optional(),
-  recording_enabled: z.boolean().default(false),
+  recording_enabled: z.boolean(),
   retention_days: z.number().min(1).max(90).optional(),
   notes: z.string().optional(),
 });

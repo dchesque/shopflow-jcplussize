@@ -155,7 +155,7 @@ export function PhotoUpload({
       <div className="flex gap-2">
         <Button
           type="button"
-          variant={mode === 'upload' ? 'default' : 'outline'}
+          variant={mode === 'upload' ? 'primary' : 'outline'}
           onClick={() => {
             setMode('upload')
             if (isCameraActive) stopCamera()
@@ -167,7 +167,7 @@ export function PhotoUpload({
         </Button>
         <Button
           type="button"
-          variant={mode === 'camera' ? 'default' : 'outline'}
+          variant={mode === 'camera' ? 'primary' : 'outline'}
           onClick={() => setMode('camera')}
           className="flex-1"
         >
@@ -198,7 +198,7 @@ export function PhotoUpload({
                 <Button
                   type="button"
                   size="sm"
-                  variant="destructive"
+                  variant="danger"
                   className="absolute -top-2 -right-2 h-8 w-8 rounded-full p-0"
                   onClick={resetPhoto}
                 >

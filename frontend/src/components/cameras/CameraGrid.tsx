@@ -261,3 +261,5 @@ export function CameraGrid({
     </div>
   )
 }
+
+export default CameraGrid
