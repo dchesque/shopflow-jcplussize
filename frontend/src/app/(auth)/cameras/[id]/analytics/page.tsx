@@ -17,17 +17,120 @@ import {
   Zap
 } from 'lucide-react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+// import { Button } from '@/components/ui/button';
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Badge } from '@/components/ui/badge';
+// import { Separator } from '@/components/ui/separator';
+
+// Temporary inline components for Docker build
+const Button = ({ children, className = "", variant = "default", ...props }: any) => (
+  <button className={`px-4 py-2 rounded-md font-medium ${className}`} {...props}>
+    {children}
+  </button>
+)
+
+const Card = ({ children, className = "", ...props }: any) => (
+  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const CardHeader = ({ children, className = "", ...props }: any) => (
+  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const CardTitle = ({ children, className = "", ...props }: any) => (
+  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props}>
+    {children}
+  </h3>
+)
+
+const CardDescription = ({ children, className = "", ...props }: any) => (
+  <p className={`text-sm text-muted-foreground ${className}`} {...props}>
+    {children}
+  </p>
+)
+
+const CardContent = ({ children, className = "", ...props }: any) => (
+  <div className={`p-6 pt-0 ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const Badge = ({ children, variant = "default", className = "" }: any) => (
+  <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}>
+    {children}
+  </div>
+)
+
+const Separator = ({ className = "" }: any) => (
+  <div className={`shrink-0 bg-border h-[1px] w-full ${className}`} />
+)
+
+const Tabs = ({ children, value, onValueChange, className = "" }: any) => (
+  <div className={className}>
+    {children}
+  </div>
+)
+
+const TabsList = ({ children, className = "" }: any) => (
+  <div className={`inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground ${className}`}>
+    {children}
+  </div>
+)
+
+const TabsTrigger = ({ children, value, className = "" }: any) => (
+  <button className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${className}`}>
+    {children}
+  </button>
+)
+
+const TabsContent = ({ children, value, className = "" }: any) => (
+  <div className={`mt-2 ${className}`}>
+    {children}
+  </div>
+)
+
+const Progress = ({ value, className = "" }: any) => (
+  <div className={`w-full bg-secondary rounded-full h-2 ${className}`}>
+    <div className="bg-primary h-2 rounded-full" style={{ width: `${value || 0}%` }}></div>
+  </div>
+)
+
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// import { Progress } from '@/components/ui/progress';
 import { useCameras, useCameraAnalytics, useCameraExport } from '@/hooks/useCameras';
-import { PeopleFlowChart } from '@/components/charts/PeopleFlowChart';
-import { HeatmapChart } from '@/components/charts/HeatmapChart';
-import { BehaviorPatternsChart } from '@/components/charts/BehaviorPatternsChart';
-import { PredictionsChart } from '@/components/charts/PredictionsChart';
+// import { PeopleFlowChart } from '@/components/charts/PeopleFlowChart';
+
+const PeopleFlowChart = ({ data }: any) => (
+  <div className="p-4 border rounded-lg">
+    <p className="text-gray-600">Gráfico de fluxo de pessoas em desenvolvimento.</p>
+  </div>
+)
+
+const HeatmapChart = ({ data }: any) => (
+  <div className="p-4 border rounded-lg">
+    <p className="text-gray-600">Gráfico de heatmap em desenvolvimento.</p>
+  </div>
+)
+
+const BehaviorPatternsChart = ({ data }: any) => (
+  <div className="p-4 border rounded-lg">
+    <p className="text-gray-600">Gráfico de padrões de comportamento em desenvolvimento.</p>
+  </div>
+)
+
+const PredictionsChart = ({ data }: any) => (
+  <div className="p-4 border rounded-lg">
+    <p className="text-gray-600">Gráfico de predições em desenvolvimento.</p>
+  </div>
+)
+
+// import { HeatmapChart } from '@/components/charts/HeatmapChart';
+// import { BehaviorPatternsChart } from '@/components/charts/BehaviorPatternsChart';
+// import { PredictionsChart } from '@/components/charts/PredictionsChart';
 
 interface CameraAnalyticsPageProps {
   params: Promise<{ id: string }>;

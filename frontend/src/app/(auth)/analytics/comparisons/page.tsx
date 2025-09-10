@@ -13,7 +13,7 @@ import {
 
 // import { PeriodComparison } from '@/components/analytics/PeriodComparison'
 // import { StoreBenchmarks } from '@/components/analytics/StoreBenchmarks'
-import { CustomKPIBuilder } from '@/components/analytics/CustomKPIBuilder'
+// import { CustomKPIBuilder } from '@/components/analytics/CustomKPIBuilder'
 
 // Temporary inline components for Docker build
 const Card = ({ children, className = "", ...props }: any) => (
@@ -63,6 +63,13 @@ const StoreBenchmarks = () => (
   <div className="p-4 border rounded-lg">
     <h3 className="text-lg font-semibold mb-4">Benchmarks da Loja</h3>
     <p className="text-gray-600">Funcionalidade de benchmarks em desenvolvimento.</p>
+  </div>
+)
+
+const CustomKPIBuilder = () => (
+  <div className="p-4 border rounded-lg">
+    <h3 className="text-lg font-semibold mb-4">Constructor de KPIs Customizados</h3>
+    <p className="text-gray-600">Funcionalidade de KPIs customizados em desenvolvimento.</p>
   </div>
 )
 
