@@ -15,7 +15,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold mb-4">1. Informações Gerais</h2>
             <p className="text-gray-300 leading-relaxed">
-              Esta Política de Privacidade descreve como o ShopFlow ("nós", "nosso" ou "sistema") 
+              Esta Política de Privacidade descreve como o ShopFlow (&quot;nós&quot;, &quot;nosso&quot; ou &quot;sistema&quot;) 
               coleta, usa, armazena e protege suas informações pessoais. Estamos comprometidos com 
               a proteção da sua privacidade e cumprimento da Lei Geral de Proteção de Dados (LGPD) 
               e do Regulamento Geral de Proteção de Dados (GDPR).
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
             <div className="text-gray-300 space-y-2">
               <p>• <strong>Acesso:</strong> Solicitar cópia dos seus dados pessoais</p>
               <p>• <strong>Retificação:</strong> Corrigir dados incorretos ou incompletos</p>
-              <p>• <strong>Exclusão:</strong> Solicitar remoção dos seus dados ("direito ao esquecimento")</p>
+              <p>• <strong>Exclusão:</strong> Solicitar remoção dos seus dados (&quot;direito ao esquecimento&quot;)</p>
               <p>• <strong>Portabilidade:</strong> Receber seus dados em formato estruturado</p>
               <p>• <strong>Oposição:</strong> Opor-se ao processamento baseado em interesse legítimo</p>
               <p>• <strong>Limitação:</strong> Solicitar limitação do processamento</p>

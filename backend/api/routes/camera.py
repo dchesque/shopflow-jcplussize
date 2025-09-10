@@ -99,36 +99,34 @@ async def process_camera_frame(
         if len(smart_detections) > 1:
             groups_detected = await analytics_instance.group_detector.detect_groups(smart_detections)
         
-        # Salva no Supabase
-        # TODO: Implementar get_supabase_client ou usar o manager global
+        # Salva no Supabase usando o manager global
         from core.database import SupabaseManager
-        supabase = SupabaseManager()
+        from core.config import settings
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
         try:
-            # Insere evento no banco
-            event_data = {
-                'camera_id': camera_id,
-                'timestamp': timestamp,
-                'people_count': people_count,
-                'customers_count': customers_count,
-                'employees_count': employees_detected,
-                'groups_count': len(groups_detected),
-                'processing_time_ms': int((datetime.now() - start_time).total_seconds() * 1000),
-                'frame_width': img.shape[1],
-                'frame_height': img.shape[0]
-            }
+            # Insere evento no banco usando método específico para câmeras
+            await supabase.insert_camera_event(
+                camera_id=camera_id,
+                timestamp=timestamp,
+                people_count=people_count,
+                customers_count=customers_count,
+                employees_count=employees_detected,
+                groups_count=len(groups_detected),
+                processing_time_ms=int((datetime.now() - start_time).total_seconds() * 1000),
+                frame_width=img.shape[1],
+                frame_height=img.shape[0],
+                metadata={
+                    'smart_analytics': {
+                        'face_attempts': sum(1 for d in smart_detections if d.face_data is not None),
+                        'behavior_active': any(d.behavior_signature for d in smart_detections),
+                        'groups': [g.group_type.value for g in groups_detected] if groups_detected else []
+                    }
+                }
+            )
             
-            result = supabase.table('camera_events').insert(event_data).execute()
-            
-            # Atualiza estatísticas em tempo real
-            stats_update = {
-                'total_visitors': people_count,
-                'current_customers': customers_count,
-                'employees_detected': employees_detected,
-                'last_update': timestamp
-            }
-            
-            # Publish via Realtime (assumindo que existe)
-            await supabase.channel('stats').publish('stats_update', stats_update)
+            logger.info(f"💾 Evento salvo: {camera_id} - {people_count} pessoas")
             
         except Exception as db_error:
             logger.warning(f"⚠️ Erro ao salvar no banco: {db_error}")

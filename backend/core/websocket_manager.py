@@ -94,6 +94,28 @@ class WebSocketManager:
         
         await self.broadcast(json.dumps(message))
     
+    async def broadcast_camera_event(self, camera_id: str, event_data: Dict[str, Any]):
+        """Broadcast específico para eventos de câmera"""
+        message = {
+            'type': 'camera_event',
+            'camera_id': camera_id,
+            'data': event_data,
+            'timestamp': time.time()
+        }
+        
+        await self.broadcast(json.dumps(message))
+        
+    async def broadcast_multi_camera_stats(self, stats_by_camera: Dict[str, Any]):
+        """Broadcast de estatísticas agregadas de múltiplas câmeras"""
+        message = {
+            'type': 'multi_camera_stats',
+            'cameras': stats_by_camera,
+            'total_cameras': len(stats_by_camera),
+            'timestamp': time.time()
+        }
+        
+        await self.broadcast(json.dumps(message))
+
     async def broadcast_event(self, event_type: str, data: Dict[str, Any]):
         """Broadcast de eventos específicos"""
         message = {

@@ -38,6 +38,111 @@ class SupabaseManager:
             logger.info("Conexão Supabase fechada")
     
     # ========================================================================
+    # CAMERA EVENTS - MULTI-CAMERA SUPPORT
+    # ========================================================================
+    
+    async def insert_camera_event(
+        self, 
+        camera_id: str,
+        timestamp: str,
+        people_count: int,
+        customers_count: int = 0,
+        employees_count: int = 0,
+        groups_count: int = 0,
+        processing_time_ms: int = 0,
+        frame_width: int = 0,
+        frame_height: int = 0,
+        metadata: Dict = None
+    ):
+        """Inserir evento de processamento de câmera - suporte a múltiplas câmeras"""
+        if not self.client:
+            logger.warning("Cliente Supabase não disponível")
+            return None
+            
+        try:
+            event_data = {
+                "camera_id": camera_id,
+                "timestamp": timestamp,
+                "people_count": people_count,
+                "customers_count": customers_count,
+                "employees_count": employees_count,
+                "groups_count": groups_count,
+                "processing_time_ms": processing_time_ms,
+                "frame_width": frame_width,
+                "frame_height": frame_height,
+                "metadata": metadata or {}
+            }
+            
+            result = self.client.table("camera_events").insert(event_data).execute()
+            
+            if result.data:
+                logger.debug(f"Evento de câmera inserido: {camera_id} - {people_count} pessoas")
+                return result.data[0]
+            else:
+                raise Exception("Falha ao inserir evento de câmera")
+                
+        except Exception as e:
+            logger.error(f"Erro ao inserir evento de câmera {camera_id}: {e}")
+            return None
+    
+    async def get_camera_stats(self, camera_id: str = None, hours: int = 24) -> Dict:
+        """Obter estatísticas de câmera(s)"""
+        if not self.client:
+            return {}
+            
+        try:
+            from datetime import datetime, timedelta
+            start_time = (datetime.now() - timedelta(hours=hours)).isoformat()
+            
+            query = self.client.table("camera_events")\
+                .select("*")\
+                .gte("timestamp", start_time)
+                
+            if camera_id:
+                query = query.eq("camera_id", camera_id)
+                
+            result = query.execute()
+            
+            events = result.data or []
+            
+            # Agregar estatísticas
+            stats = {
+                "total_events": len(events),
+                "total_people": sum(e.get("people_count", 0) for e in events),
+                "total_customers": sum(e.get("customers_count", 0) for e in events),
+                "total_employees": sum(e.get("employees_count", 0) for e in events),
+                "avg_processing_time": sum(e.get("processing_time_ms", 0) for e in events) / len(events) if events else 0,
+                "cameras_active": len(set(e.get("camera_id") for e in events)),
+                "period_hours": hours
+            }
+            
+            # Estatísticas por câmera
+            if not camera_id:
+                camera_breakdown = {}
+                for event in events:
+                    cam_id = event.get("camera_id", "unknown")
+                    if cam_id not in camera_breakdown:
+                        camera_breakdown[cam_id] = {
+                            "events": 0,
+                            "people": 0,
+                            "customers": 0,
+                            "employees": 0
+                        }
+                    
+                    camera_breakdown[cam_id]["events"] += 1
+                    camera_breakdown[cam_id]["people"] += event.get("people_count", 0)
+                    camera_breakdown[cam_id]["customers"] += event.get("customers_count", 0)
+                    camera_breakdown[cam_id]["employees"] += event.get("employees_count", 0)
+                
+                stats["by_camera"] = camera_breakdown
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Erro ao obter stats de câmera: {e}")
+            return {}
+
+    # ========================================================================
     # PEOPLE EVENTS
     # ========================================================================
     
