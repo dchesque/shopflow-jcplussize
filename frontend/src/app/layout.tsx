@@ -13,10 +13,54 @@ const inter = Inter({
 })
 
 export const metadata = {
-  title: 'ShopFlow - Smart Analytics',
-  description: 'Sistema inteligente de contagem e análise de pessoas na loja',
-  keywords: 'analytics, retail, people counting, AI, computer vision',
+  title: {
+    default: 'ShopFlow - Smart Analytics',
+    template: '%s | ShopFlow'
+  },
+  description: 'Sistema inteligente de contagem e análise de pessoas na loja. Monitore fluxo de clientes, analise comportamento e otimize seu negócio com IA.',
+  keywords: ['analytics', 'retail', 'people counting', 'AI', 'computer vision', 'business intelligence', 'loja inteligente', 'análise comportamental'],
   authors: [{ name: 'ShopFlow Team' }],
+  creator: 'ShopFlow',
+  publisher: 'ShopFlow',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    url: 'https://shopflow.com',
+    siteName: 'ShopFlow',
+    title: 'ShopFlow - Smart Analytics',
+    description: 'Sistema inteligente de análise de pessoas na loja com IA',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'ShopFlow Dashboard',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@shopflow',
+    creator: '@shopflow',
+    title: 'ShopFlow - Smart Analytics',
+    description: 'Sistema inteligente de análise de pessoas na loja com IA',
+    images: ['/og-image.png'],
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  alternates: {
+    canonical: '/',
+  },
 }
 
 export const viewport = {

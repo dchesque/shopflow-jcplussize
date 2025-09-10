@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Disallow admin/private areas
+Disallow: /api/
+Disallow: /_next/
+Disallow: /.next/
+
+# Sitemap location
+Sitemap: https://shopflow.com/sitemap.xml

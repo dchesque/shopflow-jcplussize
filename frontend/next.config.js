@@ -5,15 +5,15 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+    optimizePackageImports: ['recharts', 'framer-motion', 'lucide-react'],
+  },
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
-    optimizePackageImports: ['recharts', 'framer-motion', 'lucide-react'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
