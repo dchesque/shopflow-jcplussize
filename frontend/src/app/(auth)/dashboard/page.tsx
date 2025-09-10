@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -223,10 +224,12 @@ export default function DashboardPage() {
           <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Status das Câmeras</h3>
-              <Button variant="ghost" size="sm" className="text-neutral-400">
-                <Eye className="w-4 h-4 mr-2" />
-                Ver Todas
-              </Button>
+              <Link href="/cameras">
+                <Button variant="ghost" size="sm" className="text-neutral-400">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Ver Todas
+                </Button>
+              </Link>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -264,9 +267,11 @@ export default function DashboardPage() {
           <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Eventos Recentes</h3>
-              <Button variant="ghost" size="sm" className="text-neutral-400">
-                Ver Todos
-              </Button>
+              <Link href="/analytics">
+                <Button variant="ghost" size="sm" className="text-neutral-400">
+                  Ver Todos
+                </Button>
+              </Link>
             </div>
             
             <div className="space-y-4">

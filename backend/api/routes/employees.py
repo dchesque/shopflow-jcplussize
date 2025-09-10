@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form
 from typing import Dict, Any, List, Optional
 import cv2
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 from loguru import logger
 import uuid
@@ -249,19 +249,29 @@ async def remove_employee(
 
 @router.get("/list", response_model=Dict[str, Any])
 async def list_employees(
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    department: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20,
     active_only: bool = True,
     include_last_seen: bool = True,
     engine: SmartAnalyticsEngine = Depends(get_smart_engine)
 ):
     """
-    Listar funcionários registrados
+    Listar funcionários registrados com filtros e paginação
     
     Args:
+        search: Buscar por nome ou ID
+        status: Filtrar por status (active/inactive)
+        department: Filtrar por departamento
+        page: Página atual
+        limit: Itens por página
         active_only: Mostrar apenas funcionários ativos
         include_last_seen: Incluir informação de último avistamento
     
     Retorna:
-        - Lista de funcionários
+        - Lista de funcionários paginada
         - Estatísticas gerais
     """
     try:
@@ -269,33 +279,66 @@ async def list_employees(
         await db.initialize()
         
         # Construir query
-        base_query = "SELECT * FROM employees"
+        base_query = "SELECT * FROM employees WHERE 1=1"
+        count_query = "SELECT COUNT(*) as total FROM employees WHERE 1=1"
         params = []
+        count_params = []
         
-        if active_only:
-            base_query += " WHERE is_active = %s"
-            params.append(True)
+        # Aplicar filtros
+        if status == 'active':
+            base_query += " AND is_active = true"
+            count_query += " AND is_active = true"
+        elif status == 'inactive':
+            base_query += " AND is_active = false"
+            count_query += " AND is_active = false"
+        elif active_only:
+            base_query += " AND is_active = true"
+            count_query += " AND is_active = true"
         
+        if department:
+            base_query += " AND department = %s"
+            count_query += " AND department = %s"
+            params.append(department)
+            count_params.append(department)
+        
+        if search:
+            base_query += " AND (name ILIKE %s OR employee_id ILIKE %s)"
+            count_query += " AND (name ILIKE %s OR employee_id ILIKE %s)"
+            search_pattern = f"%{search}%"
+            params.extend([search_pattern, search_pattern])
+            count_params.extend([search_pattern, search_pattern])
+        
+        # Ordenação
         base_query += " ORDER BY registered_at DESC"
+        
+        # Paginação
+        offset = (page - 1) * limit
+        base_query += f" LIMIT {limit} OFFSET {offset}"
         
         try:
             employees_data = await db.fetch_all(base_query, params)
+            total_result = await db.fetch_one(count_query, count_params)
+            total_count = total_result['total'] if total_result else 0
         except Exception:
             # Se tabela não existe, retornar lista vazia
             employees_data = []
+            total_count = 0
         
         # Processar dados
         employees_list = []
         active_count = 0
+        inactive_count = 0
         
         for emp in employees_data:
             employee_info = {
+                "id": emp['employee_id'],  # Compatibilidade com frontend
                 "employee_id": emp['employee_id'],
                 "name": emp['name'],
                 "department": emp.get('department'),
                 "position": emp.get('position'),
                 "registered_at": emp['registered_at'].isoformat() if emp['registered_at'] else None,
-                "is_active": emp.get('is_active', True)
+                "is_active": emp.get('is_active', True),
+                "status": "active" if emp.get('is_active', True) else "inactive"
             }
             
             if include_last_seen and emp.get('last_seen'):
@@ -306,23 +349,126 @@ async def list_employees(
             
             if emp.get('is_active', True):
                 active_count += 1
+            else:
+                inactive_count += 1
         
+        # Calcular paginação
+        total_pages = (total_count + limit - 1) // limit if total_count > 0 else 1
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        # Formato compatível com frontend
         return {
-            "status": "success",
-            "data": {
-                "employees": employees_list,
-                "statistics": {
-                    "total_registered": len(employees_list),
-                    "active_employees": active_count,
-                    "inactive_employees": len(employees_list) - active_count,
-                    "face_recognition_enabled": engine.enable_face_recognition if engine else False
-                },
-                "generated_at": datetime.now().isoformat()
-            }
+            "employees": employees_list,
+            "total_count": total_count,
+            "active_count": active_count,
+            "inactive_count": inactive_count,
+            "page": page,
+            "limit": limit,
+            "has_next": has_next,
+            "has_prev": has_prev,
+            "total_pages": total_pages,
+            "statistics": {
+                "total_registered": total_count,
+                "active_employees": active_count,
+                "inactive_employees": inactive_count,
+                "face_recognition_enabled": engine.enable_face_recognition if engine else False
+            },
+            "generated_at": datetime.now().isoformat()
         }
         
     except Exception as e:
         logger.error(f"Erro ao listar funcionários: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno: {str(e)}"
+        )
+
+@router.get("/{employee_id}/analytics", response_model=Dict[str, Any])
+async def get_employee_analytics(
+    employee_id: str,
+    days: int = 30
+):
+    """
+    Obter analytics específicas de um funcionário
+    
+    Args:
+        employee_id: ID do funcionário
+        days: Período de análise em dias
+    
+    Retorna:
+        - Métricas de presença
+        - Padrões de comportamento
+        - Estatísticas de produtividade
+    """
+    try:
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+        
+        start_date = datetime.now() - timedelta(days=days)
+        
+        # Buscar dados analíticos
+        analytics_query = """
+            SELECT 
+                DATE(timestamp) as work_date,
+                MIN(timestamp) as first_seen,
+                MAX(timestamp) as last_seen,
+                COUNT(*) as detection_count
+            FROM behavior_analytics 
+            WHERE person_type = 'employee' 
+                AND metadata->>'employee_id' = %s
+                AND timestamp >= %s
+            GROUP BY DATE(timestamp)
+            ORDER BY work_date DESC
+        """
+        
+        try:
+            analytics_data = await db.fetch_all(analytics_query, (employee_id, start_date))
+        except Exception:
+            analytics_data = []
+        
+        # Processar dados
+        total_days_worked = len(analytics_data)
+        total_hours = 0
+        daily_hours = []
+        attendance_pattern = {}
+        
+        for record in analytics_data:
+            if record['first_seen'] and record['last_seen']:
+                hours = (record['last_seen'] - record['first_seen']).total_seconds() / 3600
+                total_hours += hours
+                daily_hours.append({
+                    'date': record['work_date'].isoformat(),
+                    'hours': round(hours, 2),
+                    'first_seen': record['first_seen'].isoformat(),
+                    'last_seen': record['last_seen'].isoformat()
+                })
+                
+                # Padrão de presença por dia da semana
+                weekday = record['work_date'].strftime('%A')
+                if weekday not in attendance_pattern:
+                    attendance_pattern[weekday] = 0
+                attendance_pattern[weekday] += 1
+        
+        avg_daily_hours = round(total_hours / total_days_worked, 2) if total_days_worked > 0 else 0
+        
+        return {
+            "employee_id": employee_id,
+            "period_days": days,
+            "metrics": {
+                "total_days_worked": total_days_worked,
+                "total_hours_worked": round(total_hours, 2),
+                "average_daily_hours": avg_daily_hours,
+                "attendance_rate": round((total_days_worked / days) * 100, 1) if days > 0 else 0
+            },
+            "daily_breakdown": daily_hours[:7],  # Últimos 7 dias
+            "attendance_pattern": attendance_pattern,
+            "performance_score": min(100, round((avg_daily_hours / 8) * 100, 1)) if avg_daily_hours > 0 else 0,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter analytics do funcionário: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Erro interno: {str(e)}"

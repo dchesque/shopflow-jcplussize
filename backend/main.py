@@ -180,6 +180,58 @@ async def bridge_heartbeat(heartbeat: HeartbeatData):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
+# HEALTH CHECK ENDPOINT
+# ============================================================================
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint para monitoramento"""
+    try:
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "services": {
+                "database": False,
+                "ai_engine": False,
+                "detector": False,
+                "tracker": False
+            }
+        }
+        
+        # Check database
+        if supabase_manager:
+            try:
+                await supabase_manager.execute("SELECT 1", [])
+                health_status["services"]["database"] = True
+            except:
+                pass
+        
+        # Check AI engine
+        if smart_engine:
+            health_status["services"]["ai_engine"] = True
+        
+        # Check detector
+        if detector:
+            health_status["services"]["detector"] = True
+        
+        # Check tracker
+        if tracker:
+            health_status["services"]["tracker"] = True
+        
+        # Overall status
+        all_healthy = all(health_status["services"].values())
+        health_status["status"] = "healthy" if all_healthy else "degraded"
+        
+        return health_status
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+# ============================================================================
 # SMART AI ENDPOINTS
 # ============================================================================
 
