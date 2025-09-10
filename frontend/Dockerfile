@@ -1,65 +1,67 @@
-# Build Stage
-FROM node:20-alpine AS builder
-
-# Set working directory
+# Multi-stage build para otimização
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies for building
+# Copiar arquivos de dependências
+COPY package.json package-lock.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Stage de build
+FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat
+WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copiar arquivos de dependências
+COPY package.json package-lock.json ./
+RUN npm ci && \
+    npm cache clean --force
 
-# Install all dependencies (including devDependencies for build)
-RUN npm ci
-
-# Copy source code
+# Copiar código fonte
 COPY . .
 
-# Set build-time environment variables
+# Variáveis de ambiente para build
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
 
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build the application with standalone output
+# Build da aplicação
 RUN npm run build
 
-# Production Stage
+# Stage de produção
 FROM node:20-alpine AS runner
-
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install only production dependencies
-RUN apk add --no-cache libc6-compat
-
-# Create non-root user for security
+# Criar usuário não-root
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy standalone build from builder
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Copiar arquivos necessários
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-# Set runtime environment variables
+# Configurar permissões
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Variáveis de ambiente runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Switch to non-root user
-USER nextjs
-
-# Expose port
 EXPOSE 3000
 
-# Health check for Easypanel
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})" || exit 1
-
-# Start the application
 CMD ["node", "server.js"]
