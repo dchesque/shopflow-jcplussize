@@ -259,7 +259,10 @@
       "Bash(npm run type-check:*)",
       "Bash(npm test:*)",
       "Bash(npm audit:*)",
-      "Bash(ANALYZE=true npm run build)"
+      "Bash(ANALYZE=true npm run build)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(cat:*)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": [],
     "ask": []
