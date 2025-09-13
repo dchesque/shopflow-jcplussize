@@ -34,64 +34,36 @@ export function useCameras() {
   const { data: cameras = [], isLoading, error, refetch } = useQuery({
     queryKey: ['cameras'],
     queryFn: async (): Promise<Camera[]> => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/camera/`)
-        if (!response.ok) throw new Error('Falha ao buscar câmeras')
-        
-        const data = await response.json()
-        const camerasData = data.cameras || []
-        
-        // Transform backend data to frontend format and add live counts
-        return camerasData.map((camera: any) => ({
-          id: camera.id,
-          name: camera.name || 'Câmera sem nome',
-          location: camera.location || 'Local não especificado',
-          rtsp_url: camera.rtsp_url || '',
-          ip_address: camera.ip_address || '',
-          port: camera.port || 554,
-          status: camera.status || 'offline',
-          fps: camera.fps || 30,
-          resolution: camera.resolution || '1920x1080',
-          confidence_threshold: camera.confidence_threshold || 0.5,
-          line_position: camera.line_position || 50,
-          detection_zone: camera.detection_zone || { x: 0, y: 0, width: 100, height: 100 },
-          is_active: camera.is_active !== false,
-          created_at: camera.created_at || new Date().toISOString(),
-          updated_at: camera.updated_at || new Date().toISOString(),
-          last_seen: camera.last_seen,
-          // Add mock live counts - in production these would come from real-time analytics
-          peopleCount: Math.floor(Math.random() * 15) + 5,
-          customersCount: Math.floor(Math.random() * 12) + 3,
-          employeesCount: Math.floor(Math.random() * 3) + 1,
-          detections: generateMockDetections()
-        }))
-      } catch (error) {
-        console.error('Erro ao buscar câmeras:', error)
-        // Retorna dados mock em caso de erro
-        return [
-          {
-            id: 'cam_mock_001',
-            name: 'Entrada Principal (Mock)',
-            location: 'Hall de Entrada',
-            rtsp_url: 'rtsp://192.168.1.100:554/stream1',
-            ip_address: '192.168.1.100',
-            port: 554,
-            status: 'offline',
-            fps: 30,
-            resolution: '1920x1080',
-            confidence_threshold: 0.5,
-            line_position: 50,
-            detection_zone: { x: 0, y: 0, width: 100, height: 100 },
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            peopleCount: 0,
-            customersCount: 0,
-            employeesCount: 0,
-            detections: []
-          }
-        ]
-      }
+      const response = await fetch(`${API_BASE_URL}/api/camera/`)
+      if (!response.ok) throw new Error('Falha ao buscar câmeras')
+      
+      const data = await response.json()
+      const camerasData = data.cameras || []
+      
+      // Transform backend data to frontend format
+      return camerasData.map((camera: any) => ({
+        id: camera.id,
+        name: camera.name || 'Câmera sem nome',
+        location: camera.location || 'Local não especificado',
+        rtsp_url: camera.rtsp_url || '',
+        ip_address: extractIpFromRtsp(camera.rtsp_url),
+        port: extractPortFromRtsp(camera.rtsp_url) || 554,
+        status: camera.status || 'offline',
+        fps: camera.fps || 30,
+        resolution: camera.resolution || '1920x1080',
+        confidence_threshold: camera.confidence_threshold || 0.5,
+        line_position: camera.line_position || 50,
+        detection_zone: camera.detection_zone || { x: 0, y: 0, width: 100, height: 100 },
+        is_active: camera.is_active !== false,
+        created_at: camera.created_at || new Date().toISOString(),
+        updated_at: camera.updated_at || new Date().toISOString(),
+        last_seen: camera.last_seen,
+        // Real-time data from backend (when available)
+        peopleCount: camera.current_people_count || 0,
+        customersCount: camera.current_customers_count || 0,
+        employeesCount: camera.current_employees_count || 0,
+        detections: camera.current_detections || []
+      }))
     },
     staleTime: 30 * 1000, // 30 segundos
     refetchInterval: 5 * 1000, // Atualizar a cada 5 segundos
@@ -150,19 +122,18 @@ export function useCameras() {
   // Mutation para capturar snapshot
   const captureSnapshotMutation = useMutation({
     mutationFn: async (cameraId: string): Promise<string> => {
-      // Simula captura de snapshot
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(`data:image/jpeg;base64,${btoa('mock-snapshot-' + cameraId)}`)
-        }, 500)
-      })
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/snapshot`)
+      if (!response.ok) throw new Error('Falha ao capturar snapshot')
+      
+      const data = await response.json()
+      return data.data // Base64 image data
     }
   })
 
   // Mutation para criar câmera
   const createCameraMutation = useMutation({
     mutationFn: async (cameraData: Partial<Camera>): Promise<string> => {
-      const response = await fetch(`${API_BASE_URL}/camera/`, {
+      const response = await fetch(`${API_BASE_URL}/api/camera/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -186,7 +157,7 @@ export function useCameras() {
   // Mutation para atualizar câmera
   const updateCameraMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Camera> }): Promise<void> => {
-      const response = await fetch(`${API_BASE_URL}/camera/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/camera/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -207,7 +178,7 @@ export function useCameras() {
   // Mutation para excluir câmera
   const deleteCameraMutation = useMutation({
     mutationFn: async (cameraId: string): Promise<void> => {
-      const response = await fetch(`${API_BASE_URL}/camera/${cameraId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}`, {
         method: 'DELETE'
       })
 
@@ -236,54 +207,62 @@ export function useCameras() {
   }
 }
 
-// Hook para métricas de câmeras em tempo real
-export function useCameraMetrics(cameraId?: string) {
-  const [liveMetrics, setLiveMetrics] = useState<{
-    peopleCount: number
-    customersCount: number
-    employeesCount: number
-    processingTime: number
-    timestamp: string
-  } | null>(null)
-
-  useEffect(() => {
-    // Simula WebSocket connection para métricas em tempo real
-    const interval = setInterval(() => {
-      if (cameraId) {
-        setLiveMetrics({
-          peopleCount: Math.floor(Math.random() * 20) + 5,
-          customersCount: Math.floor(Math.random() * 15) + 3,
-          employeesCount: Math.floor(Math.random() * 5) + 1,
-          processingTime: Math.random() * 100 + 20,
-          timestamp: new Date().toISOString()
-        })
-      }
-    }, 2000) // Atualizar a cada 2 segundos
-
-    return () => clearInterval(interval)
-  }, [cameraId])
-
-  return { liveMetrics }
+// Funções auxiliares para extrair IP e porta da URL RTSP
+function extractIpFromRtsp(rtspUrl: string): string {
+  if (!rtspUrl) return ''
+  
+  try {
+    const url = new URL(rtspUrl)
+    return url.hostname
+  } catch {
+    // Fallback para URLs malformadas
+    const match = rtspUrl.match(/rtsp:\/\/([^:\/]+)/)
+    return match ? match[1] : ''
+  }
 }
 
-// Função auxiliar para gerar detecções mock
-function generateMockDetections(): Detection[] {
-  const count = Math.floor(Math.random() * 5) + 1
-  const detections: Detection[] = []
-
-  for (let i = 0; i < count; i++) {
-    detections.push({
-      id: `detection_${i}`,
-      label: Math.random() > 0.7 ? 'Funcionário' : 'Cliente',
-      confidence: Math.random() * 0.3 + 0.7, // 0.7 - 1.0
-      x: Math.random() * 70 + 5, // 5% - 75%
-      y: Math.random() * 60 + 10, // 10% - 70%
-      width: Math.random() * 15 + 10, // 10% - 25%
-      height: Math.random() * 20 + 15 // 15% - 35%
-    })
+function extractPortFromRtsp(rtspUrl: string): number | null {
+  if (!rtspUrl) return null
+  
+  try {
+    const url = new URL(rtspUrl)
+    return url.port ? parseInt(url.port) : null
+  } catch {
+    // Fallback para URLs malformadas
+    const match = rtspUrl.match(/rtsp:\/\/[^:]+:(\d+)/)
+    return match ? parseInt(match[1]) : null
   }
+}
 
-  return detections
+// Hook para métricas de câmeras em tempo real (integração real)
+export function useCameraMetrics(cameraId?: string) {
+  const { data: liveMetrics, isLoading } = useQuery({
+    queryKey: ['camera-metrics', cameraId],
+    queryFn: async () => {
+      if (!cameraId) return null
+      
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/events?limit=1`)
+      if (!response.ok) throw new Error('Falha ao buscar métricas')
+      
+      const data = await response.json()
+      const latestEvent = data.events?.[0]
+      
+      if (!latestEvent) return null
+      
+      return {
+        peopleCount: latestEvent.people_count || 0,
+        customersCount: latestEvent.customers_count || 0,
+        employeesCount: latestEvent.employees_count || 0,
+        processingTime: latestEvent.processing_time_ms || 0,
+        timestamp: latestEvent.timestamp
+      }
+    },
+    enabled: !!cameraId,
+    refetchInterval: 2000, // Atualizar a cada 2 segundos
+    staleTime: 1000
+  })
+
+  return { liveMetrics, isLoading }
 }
 
 // Hook para status de conexão das câmeras
@@ -291,22 +270,18 @@ export function useCameraHealth() {
   const { data, isLoading } = useQuery({
     queryKey: ['camera-health'],
     queryFn: async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/camera/status`)
-        if (!response.ok) throw new Error('Health check failed')
-        
-        return await response.json()
-      } catch (error) {
-        console.error('Camera health check failed:', error)
-        return {
-          detector_loaded: true,
-          analytics_initialized: true,
-          modules: {
-            face_recognition: true,
-            behavior_analysis: true,
-            group_detection: true,
-            temporal_analysis: true
-          }
+      const response = await fetch(`${API_BASE_URL}/health`)
+      if (!response.ok) throw new Error('Health check failed')
+      
+      const healthData = await response.json()
+      return {
+        detector_loaded: healthData.services?.detector || false,
+        analytics_initialized: healthData.services?.ai_engine || false,
+        modules: {
+          face_recognition: healthData.services?.ai_engine || false,
+          behavior_analysis: healthData.services?.ai_engine || false,
+          group_detection: healthData.services?.ai_engine || false,
+          temporal_analysis: healthData.services?.ai_engine || false
         }
       }
     },
@@ -327,7 +302,7 @@ export function useCameraConnection() {
     mutationFn: async (cameraId: string): Promise<{ success: boolean; message: string; latency?: number }> => {
       try {
         const startTime = Date.now()
-        const response = await fetch(`${API_BASE_URL}/camera/${cameraId}/test-connection`, {
+        const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/test-connection`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -367,45 +342,33 @@ export function useCameraAnalytics(cameraId: string) {
   const { data: analytics, isLoading, error } = useQuery({
     queryKey: ['camera-analytics', cameraId],
     queryFn: async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/analytics/camera/${cameraId}`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
-          }
-        })
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/events?limit=100`)
+      if (!response.ok) {
+        throw new Error('Falha ao buscar analytics da câmera')
+      }
 
-        if (!response.ok) {
-          throw new Error('Falha ao buscar analytics da câmera')
-        }
+      const data = await response.json()
+      const events = data.events || []
+      
+      // Processar eventos para gerar analytics
+      const totalPeople = events.reduce((sum: number, event: any) => sum + (event.people_count || 0), 0)
+      const totalCustomers = events.reduce((sum: number, event: any) => sum + (event.customers_count || 0), 0)
+      const totalEmployees = events.reduce((sum: number, event: any) => sum + (event.employees_count || 0), 0)
+      const avgProcessingTime = events.length > 0 
+        ? events.reduce((sum: number, event: any) => sum + (event.processing_time_ms || 0), 0) / events.length 
+        : 0
 
-        return await response.json()
-      } catch (error) {
-        // Mock data em caso de erro
-        return {
-          camera_id: cameraId,
-          daily_metrics: {
-            people_count: Math.floor(Math.random() * 500) + 100,
-            customers_count: Math.floor(Math.random() * 400) + 80,
-            employees_count: Math.floor(Math.random() * 20) + 5,
-            avg_dwell_time: Math.floor(Math.random() * 300) + 60,
-            peak_hours: ['10:00', '14:00', '18:00'],
-            conversion_rate: Math.random() * 0.3 + 0.1
-          },
-          behavior_patterns: {
-            hotspots: [
-              { x: 25, y: 30, intensity: 0.8 },
-              { x: 60, y: 45, intensity: 0.6 },
-              { x: 80, y: 20, intensity: 0.4 }
-            ],
-            movement_patterns: ['entrance_to_products', 'products_to_checkout', 'browsing'],
-            group_sizes: { single: 45, pair: 35, group: 20 }
-          },
-          predictions: {
-            next_hour_flow: Math.floor(Math.random() * 50) + 10,
-            staff_recommendation: Math.floor(Math.random() * 3) + 2,
-            anomaly_score: Math.random() * 0.1
-          }
-        }
+      return {
+        camera_id: cameraId,
+        daily_metrics: {
+          people_count: totalPeople,
+          customers_count: totalCustomers,
+          employees_count: totalEmployees,
+          avg_processing_time: Math.round(avgProcessingTime),
+          events_count: events.length,
+          last_updated: new Date().toISOString()
+        },
+        recent_events: events.slice(0, 10)
       }
     },
     enabled: !!cameraId,
@@ -424,80 +387,72 @@ export function useCameraAnalytics(cameraId: string) {
 export function useCameraExport() {
   const exportSnapshotMutation = useMutation({
     mutationFn: async (cameraId: string): Promise<string> => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/cameras/${cameraId}/export/snapshot`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
-          }
-        })
-
-        if (!response.ok) {
-          throw new Error('Falha ao exportar snapshot')
-        }
-
-        const blob = await response.blob()
-        return URL.createObjectURL(blob)
-      } catch (error) {
-        throw new Error('Erro ao exportar snapshot')
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/snapshot`)
+      if (!response.ok) {
+        throw new Error('Falha ao exportar snapshot')
       }
-    }
-  })
 
-  const exportVideoClipMutation = useMutation({
-    mutationFn: async ({ cameraId, duration = 30 }: { cameraId: string; duration?: number }): Promise<string> => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/cameras/${cameraId}/export/clip`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
-          },
-          body: JSON.stringify({ duration })
-        })
-
-        if (!response.ok) {
-          throw new Error('Falha ao exportar clipe')
-        }
-
-        const blob = await response.blob()
-        return URL.createObjectURL(blob)
-      } catch (error) {
-        throw new Error('Erro ao exportar clipe de vídeo')
+      const data = await response.json()
+      
+      // Converter base64 para blob e criar URL
+      const base64Data = data.data.split(',')[1] // Remove 'data:image/jpeg;base64,'
+      const byteCharacters = atob(base64Data)
+      const byteNumbers = new Array(byteCharacters.length)
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
+      
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'image/jpeg' })
+      
+      return URL.createObjectURL(blob)
     }
   })
 
   const exportReportMutation = useMutation({
-    mutationFn: async ({ cameraId, format = 'pdf', dateRange }: { 
+    mutationFn: async ({ cameraId, format = 'csv', dateRange }: { 
       cameraId: string; 
-      format?: 'pdf' | 'csv' | 'xlsx'; 
+      format?: 'csv' | 'json'; 
       dateRange: { start: string; end: string } 
     }): Promise<string> => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/analytics/camera/${cameraId}/export`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
-          },
-          body: JSON.stringify({ format, ...dateRange })
-        })
-
-        if (!response.ok) {
-          throw new Error('Falha ao exportar relatório')
-        }
-
-        const blob = await response.blob()
-        return URL.createObjectURL(blob)
-      } catch (error) {
-        throw new Error('Erro ao exportar relatório')
+      const response = await fetch(`${API_BASE_URL}/api/camera/${cameraId}/events?start_date=${dateRange.start}&end_date=${dateRange.end}&limit=1000`)
+      if (!response.ok) {
+        throw new Error('Falha ao exportar relatório')
       }
+
+      const data = await response.json()
+      const events = data.events || []
+      
+      let content: string
+      let mimeType: string
+      let filename: string
+      
+      if (format === 'csv') {
+        // Gerar CSV
+        const headers = ['timestamp', 'people_count', 'customers_count', 'employees_count', 'processing_time_ms']
+        const csvContent = [
+          headers.join(','),
+          ...events.map((event: any) => headers.map(header => event[header] || 0).join(','))
+        ].join('\n')
+        
+        content = csvContent
+        mimeType = 'text/csv'
+        filename = `camera_${cameraId}_report.csv`
+      } else {
+        // Gerar JSON
+        content = JSON.stringify(events, null, 2)
+        mimeType = 'application/json'
+        filename = `camera_${cameraId}_report.json`
+      }
+      
+      const blob = new Blob([content], { type: mimeType })
+      return URL.createObjectURL(blob)
     }
   })
 
   return {
     exportSnapshot: exportSnapshotMutation,
-    exportVideoClip: exportVideoClipMutation,
     exportReport: exportReportMutation
   }
 }

@@ -389,3 +389,103 @@ async def get_camera_events(
     except Exception as e:
         logger.error(f"❌ Erro ao obter eventos da câmera: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{camera_id}/snapshot")
+async def get_camera_snapshot(camera_id: str):
+    """📸 Obter snapshot atual da câmera"""
+    try:
+        from core.database import SupabaseManager
+        from core.config import settings
+        import base64
+        from io import BytesIO
+        from PIL import Image, ImageDraw, ImageFont
+        import numpy as np
+        
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        camera = await supabase.get_camera_by_id(camera_id)
+        if not camera:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+        
+        # Gerar imagem simulada (em produção seria captura da câmera real)
+        width, height = 640, 480
+        
+        # Criar imagem base com gradiente
+        img = Image.new('RGB', (width, height), color='#1a1a1a')
+        draw = ImageDraw.Draw(img)
+        
+        # Adicionar gradiente simulado
+        for y in range(height):
+            shade = int(50 + (y / height) * 50)
+            color = (shade, shade, shade + 10)
+            draw.line([(0, y), (width, y)], fill=color)
+        
+        # Adicionar informações da câmera
+        camera_name = camera.get('name', 'Câmera')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Texto principal
+        try:
+            # Tentar usar fonte padrão
+            font_large = ImageFont.load_default()
+            font_small = ImageFont.load_default()
+        except:
+            font_large = None
+            font_small = None
+        
+        # Informações da câmera
+        info_text = [
+            f"📹 {camera_name}",
+            f"⏰ {timestamp}",
+            f"📍 {camera.get('location', 'N/A')}",
+            f"🎯 {camera.get('fps', 30)} FPS",
+            f"📏 {camera.get('resolution', '640x480')}"
+        ]
+        
+        # Desenhar informações
+        y_offset = 20
+        for line in info_text:
+            draw.text((20, y_offset), line, fill='white', font=font_small)
+            y_offset += 25
+        
+        # Adicionar alguns elementos visuais simulando detecções
+        import random
+        random.seed(int(datetime.now().timestamp()) % 1000)
+        
+        for i in range(random.randint(1, 3)):
+            x = random.randint(50, width - 150)
+            y = random.randint(150, height - 100)
+            w = random.randint(80, 120)
+            h = random.randint(100, 140)
+            
+            # Bounding box
+            draw.rectangle([x, y, x + w, y + h], outline='lime', width=2)
+            
+            # Label
+            confidence = random.randint(75, 98)
+            label = f"Pessoa {confidence}%"
+            draw.rectangle([x, y - 20, x + len(label) * 8, y], fill='lime')
+            draw.text((x + 2, y - 18), label, fill='black', font=font_small)
+        
+        # Converter para base64
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG', quality=85)
+        img_bytes = buffer.getvalue()
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+        return {
+            'success': True,
+            'camera_id': camera_id,
+            'timestamp': timestamp,
+            'format': 'image/jpeg',
+            'size': len(img_bytes),
+            'data': f"data:image/jpeg;base64,{img_base64}",
+            'resolution': f"{width}x{height}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao gerar snapshot: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

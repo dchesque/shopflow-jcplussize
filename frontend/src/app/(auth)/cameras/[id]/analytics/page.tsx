@@ -17,167 +17,59 @@ import {
   Zap
 } from 'lucide-react';
 import Link from 'next/link';
-// import { Button } from '@/components/ui/button';
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Badge } from '@/components/ui/badge';
-// import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { useCameras, useCameraAnalytics, useCameraExport } from '@/hooks/useCameras';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 
-// Temporary inline components for Docker build
-const Button = ({ children, className = "", variant = "default", ...props }: any) => (
-  <button className={`px-4 py-2 rounded-md font-medium ${className}`} {...props}>
-    {children}
-  </button>
-)
-
-const Card = ({ children, className = "", ...props }: any) => (
-  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
-    {children}
+// Simplified chart components for real data display
+const MetricsDisplay = ({ data }: any) => (
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="p-4 border rounded-lg">
+      <p className="text-2xl font-bold text-blue-500">{data?.people_count || 0}</p>
+      <p className="text-sm text-gray-600">Total Pessoas</p>
+    </div>
+    <div className="p-4 border rounded-lg">
+      <p className="text-2xl font-bold text-green-500">{data?.customers_count || 0}</p>
+      <p className="text-sm text-gray-600">Clientes</p>
+    </div>
+    <div className="p-4 border rounded-lg">
+      <p className="text-2xl font-bold text-orange-500">{data?.employees_count || 0}</p>
+      <p className="text-sm text-gray-600">Funcionários</p>
+    </div>
+    <div className="p-4 border rounded-lg">
+      <p className="text-2xl font-bold text-purple-500">{data?.events_count || 0}</p>
+      <p className="text-sm text-gray-600">Eventos</p>
+    </div>
   </div>
 )
 
-const CardHeader = ({ children, className = "", ...props }: any) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props}>
-    {children}
+const EventsList = ({ events }: any) => (
+  <div className="space-y-2 max-h-96 overflow-y-auto">
+    {events?.length > 0 ? (
+      events.map((event: any, index: number) => (
+        <div key={index} className="flex justify-between items-center p-2 border-b">
+          <div>
+            <p className="text-sm font-medium">
+              {event.people_count || 0} pessoas detectadas
+            </p>
+            <p className="text-xs text-gray-500">
+              {new Date(event.timestamp).toLocaleString()}
+            </p>
+          </div>
+          <Badge variant="outline">
+            {event.processing_time_ms || 0}ms
+          </Badge>
+        </div>
+      ))
+    ) : (
+      <p className="text-gray-500 text-center py-8">Nenhum evento registrado</p>
+    )}
   </div>
 )
-
-const CardTitle = ({ children, className = "", ...props }: any) => (
-  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props}>
-    {children}
-  </h3>
-)
-
-const CardDescription = ({ children, className = "", ...props }: any) => (
-  <p className={`text-sm text-muted-foreground ${className}`} {...props}>
-    {children}
-  </p>
-)
-
-const CardContent = ({ children, className = "", ...props }: any) => (
-  <div className={`p-6 pt-0 ${className}`} {...props}>
-    {children}
-  </div>
-)
-
-const Badge = ({ children, variant = "default", className = "" }: any) => (
-  <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}>
-    {children}
-  </div>
-)
-
-const Separator = ({ className = "" }: any) => (
-  <div className={`shrink-0 bg-border h-[1px] w-full ${className}`} />
-)
-
-const Tabs = ({ children, value, onValueChange, className = "" }: any) => (
-  <div className={className}>
-    {children}
-  </div>
-)
-
-const TabsList = ({ children, className = "" }: any) => (
-  <div className={`inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground ${className}`}>
-    {children}
-  </div>
-)
-
-const TabsTrigger = ({ children, value, className = "" }: any) => (
-  <button className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ${className}`}>
-    {children}
-  </button>
-)
-
-const TabsContent = ({ children, value, className = "" }: any) => (
-  <div className={`mt-2 ${className}`}>
-    {children}
-  </div>
-)
-
-const Progress = ({ value, className = "" }: any) => (
-  <div className={`w-full bg-secondary rounded-full h-2 ${className}`}>
-    <div className="bg-primary h-2 rounded-full" style={{ width: `${value || 0}%` }}></div>
-  </div>
-)
-
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-// import { Progress } from '@/components/ui/progress';
-// import { useCameras, useCameraAnalytics, useCameraExport } from '@/hooks/useCameras';
-
-// Mock hooks for Docker build
-const useCameras = () => ({
-  cameras: [] as Array<{ id: string; name: string; location: string; status: string; peopleCount?: number; customersCount?: number; employeesCount?: number }>,
-  isLoading: false,
-  error: null
-});
-
-const useCameraAnalytics = (id: string) => ({
-  analytics: {
-    daily_metrics: {
-      people_count: 0,
-      customers_count: 0,
-      employees_count: 0,
-      avg_dwell_time: 0,
-      conversion_rate: 0,
-      peak_hours: []
-    },
-    behavior_patterns: {
-      hotspots: []
-    },
-    predictions: {
-      anomaly_score: 0,
-      staff_recommendation: 0,
-      next_hour_flow: 0
-    }
-  },
-  isLoading: false,
-  error: null
-});
-
-const useCameraExport = () => ({
-  exportData: () => {},
-  exportSnapshot: {
-    mutateAsync: async (id: string) => 'mock-snapshot-url',
-    isPending: false
-  },
-  exportVideoClip: {
-    mutateAsync: async ({ cameraId, duration }: { cameraId: string; duration: number }) => 'mock-video-url',
-    isPending: false
-  },
-  exportReport: {
-    mutateAsync: async ({ cameraId, format, dateRange }: { cameraId: string; format: string; dateRange: { start: string; end: string } }) => 'mock-report-url',
-    isPending: false
-  },
-  isExporting: false
-});
-// import { PeopleFlowChart } from '@/components/charts/PeopleFlowChart';
-
-const PeopleFlowChart = ({ data }: any) => (
-  <div className="p-4 border rounded-lg">
-    <p className="text-gray-600">Gráfico de fluxo de pessoas em desenvolvimento.</p>
-  </div>
-)
-
-const HeatmapChart = ({ data }: any) => (
-  <div className="p-4 border rounded-lg">
-    <p className="text-gray-600">Gráfico de heatmap em desenvolvimento.</p>
-  </div>
-)
-
-const BehaviorPatternsChart = ({ data }: any) => (
-  <div className="p-4 border rounded-lg">
-    <p className="text-gray-600">Gráfico de padrões de comportamento em desenvolvimento.</p>
-  </div>
-)
-
-const PredictionsChart = ({ data }: any) => (
-  <div className="p-4 border rounded-lg">
-    <p className="text-gray-600">Gráfico de predições em desenvolvimento.</p>
-  </div>
-)
-
-// import { HeatmapChart } from '@/components/charts/HeatmapChart';
-// import { BehaviorPatternsChart } from '@/components/charts/BehaviorPatternsChart';
-// import { PredictionsChart } from '@/components/charts/PredictionsChart';
 
 interface CameraAnalyticsPageProps {
   params: Promise<{ id: string }>;
