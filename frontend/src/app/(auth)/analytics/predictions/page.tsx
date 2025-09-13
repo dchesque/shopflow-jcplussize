@@ -8,8 +8,8 @@ export default function PredictionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Predições Analytics</h1>
-        <p className="text-gray-400">Análises preditivas e forecasts baseados em IA</p>
+        <h1 className="text-3xl font-bold mb-2">Predições Analytics</h1>
+        <p className="text-gray-600">Análises preditivas avançadas e forecasts baseados em IA para otimização de negócios</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

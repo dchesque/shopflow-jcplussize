@@ -2,18 +2,13 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-// import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-// import { Badge } from '@/components/ui/badge'
 import { 
   BarChart3, TrendingUp, Target, Calculator, 
   Calendar, Building2, Zap, Crown
 } from 'lucide-react'
-
-// import { PeriodComparison } from '@/components/analytics/PeriodComparison'
-// import { StoreBenchmarks } from '@/components/analytics/StoreBenchmarks'
-// import { CustomKPIBuilder } from '@/components/analytics/CustomKPIBuilder'
+import { PeriodComparison } from '@/components/analytics/PeriodComparison'
+import { StoreBenchmarks } from '@/components/analytics/StoreBenchmarks'
 
 // Temporary inline components for Docker build
 const Card = ({ children, className = "", ...props }: any) => (
@@ -52,24 +47,48 @@ const Badge = ({ children, variant = "default", className = "" }: any) => (
   </div>
 )
 
-const PeriodComparison = () => (
-  <div className="p-4 border rounded-lg">
-    <h3 className="text-lg font-semibold mb-4">Comparação de Períodos</h3>
-    <p className="text-gray-600">Funcionalidade de comparação de períodos em desenvolvimento.</p>
-  </div>
-)
-
-const StoreBenchmarks = () => (
-  <div className="p-4 border rounded-lg">
-    <h3 className="text-lg font-semibold mb-4">Benchmarks da Loja</h3>
-    <p className="text-gray-600">Funcionalidade de benchmarks em desenvolvimento.</p>
-  </div>
-)
-
 const CustomKPIBuilder = () => (
   <div className="p-4 border rounded-lg">
     <h3 className="text-lg font-semibold mb-4">Constructor de KPIs Customizados</h3>
-    <p className="text-gray-600">Funcionalidade de KPIs customizados em desenvolvimento.</p>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-4">
+          <h4 className="font-semibold mb-2">KPIs Ativos</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Taxa de Conversão por Zona</span>
+              <Badge variant="outline">Ativo</Badge>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Tempo Médio por Seção</span>
+              <Badge variant="outline">Ativo</Badge>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Eficiência de Layout</span>
+              <Badge variant="outline">Ativo</Badge>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <h4 className="font-semibold mb-2">Templates Disponíveis</h4>
+          <div className="space-y-2">
+            <Button variant="outline" size="sm" className="w-full justify-start">
+              ROI por Metro Quadrado
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start">
+              Índice de Satisfação Cliente
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start">
+              Performance de Vendedores
+            </Button>
+          </div>
+        </Card>
+      </div>
+      <Button className="w-full">
+        <Calculator className="w-4 h-4 mr-2" />
+        Criar Novo KPI Customizado
+      </Button>
+    </div>
   </div>
 )
 

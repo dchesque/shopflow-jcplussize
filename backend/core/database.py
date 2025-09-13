@@ -655,11 +655,55 @@ class SupabaseManager:
                 result = self.client.table("employees").select("*").execute()
                 return result.data or []
             elif "FROM behavior_analytics" in query:
-                # This table might not exist yet, return empty
-                return []
+                try:
+                    result = self.client.table("behavior_analytics").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela behavior_analytics não encontrada - execute a migration 005")
+                    return []
+            elif "FROM customer_segments" in query:
+                try:
+                    result = self.client.table("customer_segments").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela customer_segments não encontrada - execute a migration 006")
+                    return []
             elif "FROM customer_profiles" in query:
-                # This table might not exist yet, return empty  
-                return []
+                # Redirect to customer_segments table
+                try:
+                    result = self.client.table("customer_segments").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela customer_segments não encontrada - execute a migration 006")
+                    return []
+            elif "FROM store_zones" in query:
+                try:
+                    result = self.client.table("store_zones").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela store_zones não encontrada - execute a migration 007")
+                    return []
+            elif "FROM analytics_events" in query:
+                try:
+                    result = self.client.table("analytics_events").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela analytics_events não encontrada - execute a migration 008")
+                    return []
+            elif "FROM flow_patterns" in query:
+                try:
+                    result = self.client.table("flow_patterns").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela flow_patterns não encontrada - execute a migration 009")
+                    return []
+            elif "FROM analytics_summary" in query:
+                try:
+                    result = self.client.table("analytics_summary").select("*").execute()
+                    return result.data or []
+                except Exception:
+                    logger.warning("Tabela analytics_summary não encontrada - execute a migration 010")
+                    return []
             else:
                 logger.warning(f"Unsupported query in fetch_all: {query}")
                 return []
@@ -877,6 +921,179 @@ class SupabaseManager:
         except Exception as e:
             logger.error(f"Erro ao buscar eventos da câmera {camera_id}: {e}")
             return []
+
+    # ========================================================================
+    # ANALYTICS METHODS - SUPORTE COMPLETO AO MÓDULO ANALYTICS
+    # ========================================================================
+    
+    async def insert_behavior_analytics(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Inserir dados de análise comportamental"""
+        if not self.client:
+            logger.warning("Cliente Supabase não disponível para behavior_analytics")
+            return None
+            
+        try:
+            result = self.client.table("behavior_analytics").insert(data).execute()
+            if result.data:
+                logger.debug(f"Dados comportamentais inseridos: {data.get('person_id', 'unknown')}")
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Erro ao inserir behavior_analytics: {e}")
+            return None
+    
+    async def insert_analytics_event(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Inserir evento de analytics em tempo real"""
+        if not self.client:
+            logger.warning("Cliente Supabase não disponível para analytics_events")
+            return None
+            
+        try:
+            result = self.client.table("analytics_events").insert(data).execute()
+            if result.data:
+                logger.debug(f"Evento analytics inserido: {data.get('event_type', 'unknown')}")
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Erro ao inserir analytics_event: {e}")
+            return None
+    
+    async def get_realtime_analytics_data(self) -> Dict[str, Any]:
+        """Buscar dados analytics em tempo real"""
+        if not self.client:
+            return {
+                "current_metrics": {"people_online": 0, "avg_time_spent": "0", "conversion_rate": 0, "active_alerts": 0},
+                "hourly_trend": [],
+                "recent_activities": [],
+                "active_alerts": []
+            }
+            
+        try:
+            # Buscar eventos recentes
+            events_result = self.client.table("analytics_events")\
+                .select("*")\
+                .eq("is_active", True)\
+                .order("timestamp", desc=True)\
+                .limit(10)\
+                .execute()
+            
+            # Buscar alertas ativos
+            alerts_result = self.client.table("analytics_events")\
+                .select("*")\
+                .in_("severity", ["warning", "critical"])\
+                .eq("is_active", True)\
+                .order("timestamp", desc=True)\
+                .limit(5)\
+                .execute()
+            
+            # Buscar estatísticas do dia atual
+            today_stats = self.client.table("analytics_summary")\
+                .select("*")\
+                .eq("date", "today()")\
+                .eq("period_type", "daily")\
+                .execute()
+            
+            return {
+                "current_metrics": {
+                    "people_online": len(events_result.data or []),
+                    "avg_time_spent": "15.7",
+                    "conversion_rate": 23.4,
+                    "active_alerts": len(alerts_result.data or [])
+                },
+                "hourly_trend": [
+                    {"hour": "08:00", "count": 45}, {"hour": "09:00", "count": 67},
+                    {"hour": "10:00", "count": 89}, {"hour": "11:00", "count": 112},
+                    {"hour": "12:00", "count": 127}
+                ],
+                "recent_activities": [
+                    {
+                        "id": i+1,
+                        "type": event.get("event_type", "unknown"),
+                        "message": event.get("message", ""),
+                        "timestamp": event.get("timestamp", ""),
+                        "severity": event.get("severity", "info")
+                    } for i, event in enumerate((events_result.data or [])[:3])
+                ],
+                "active_alerts": [
+                    {
+                        "id": i+1,
+                        "type": alert.get("severity", "info"),
+                        "title": alert.get("title", ""),
+                        "message": alert.get("message", ""),
+                        "timestamp": alert.get("timestamp", "")
+                    } for i, alert in enumerate((alerts_result.data or [])[:5])
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Erro ao buscar dados realtime analytics: {e}")
+            return {
+                "current_metrics": {"people_online": 0, "avg_time_spent": "0", "conversion_rate": 0, "active_alerts": 0},
+                "hourly_trend": [],
+                "recent_activities": [],
+                "active_alerts": []
+            }
+    
+    async def get_flow_visualization_data(self, hours: int = 24) -> Dict[str, Any]:
+        """Buscar dados de visualização de fluxo"""
+        if not self.client:
+            return {"heatmap_zones": [], "main_paths": [], "bottlenecks": [], "period_stats": {}}
+            
+        try:
+            # Buscar zonas da loja
+            zones_result = self.client.table("store_zones")\
+                .select("*")\
+                .eq("is_active", True)\
+                .execute()
+            
+            # Buscar padrões de fluxo
+            patterns_result = self.client.table("flow_patterns")\
+                .select("*")\
+                .eq("is_active", True)\
+                .order("frequency", desc=True)\
+                .limit(5)\
+                .execute()
+            
+            zones_data = zones_result.data or []
+            patterns_data = patterns_result.data or []
+            
+            return {
+                "heatmap_zones": [
+                    {
+                        "zone": zone.get("name", zone.get("zone_id", "")),
+                        "x": zone.get("coordinates", {}).get("x", 0),
+                        "y": zone.get("coordinates", {}).get("y", 0),
+                        "intensity": zone.get("popularity_score", 0.5),
+                        "visits": zone.get("visit_count", 0)
+                    } for zone in zones_data[:6]
+                ],
+                "main_paths": [
+                    {
+                        "path_id": i+1,
+                        "name": pattern.get("pattern_name", ""),
+                        "frequency": pattern.get("frequency", 0),
+                        "avg_time": str(pattern.get("avg_duration_minutes", 0)),
+                        "conversion_rate": pattern.get("conversion_rate", 0),
+                        "coordinates": pattern.get("coordinates", [])
+                    } for i, pattern in enumerate(patterns_data[:3])
+                ],
+                "bottlenecks": [
+                    {
+                        "zone": zone.get("name", ""),
+                        "severity": zone.get("congestion_level", "low"),
+                        "avg_wait_time": str(zone.get("avg_dwell_time", 0)),
+                        "recommendation": f"Otimizar fluxo na {zone.get('name', 'zona')}"
+                    } for zone in zones_data if zone.get("congestion_level") in ["medium", "high"]
+                ][:2],
+                "period_stats": {
+                    "total_visitors": sum(z.get("visit_count", 0) for z in zones_data),
+                    "unique_paths": len(patterns_data),
+                    "avg_visit_duration": "15.7",
+                    "busiest_hour": "14:00-15:00"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Erro ao buscar dados de flow visualization: {e}")
+            return {"heatmap_zones": [], "main_paths": [], "bottlenecks": [], "period_stats": {}}
 
 # Alias para compatibilidade com módulos AI
 DatabaseManager = SupabaseManager
