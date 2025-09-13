@@ -262,7 +262,10 @@
       "Bash(ANALYZE=true npm run build)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(cat:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(dir:*)",
+      "Bash(venv\\Scripts\\activate.bat:*)",
+      "Bash(venv/Scripts/pip.exe install:*)"
     ],
     "deny": [],
     "ask": []
