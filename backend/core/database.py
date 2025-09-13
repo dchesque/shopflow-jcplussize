@@ -726,5 +726,157 @@ class SupabaseManager:
             logger.error(f"Erro ao criar alerta: {e}")
             return None
 
+    # ========================================================================
+    # CAMERA MANAGEMENT - CRUD OPERATIONS
+    # ========================================================================
+    
+    async def get_cameras(self) -> List[Dict[str, Any]]:
+        """Buscar todas as câmeras configuradas"""
+        if not self.client:
+            return []
+            
+        try:
+            result = self.client.table("cameras")\
+                .select("*")\
+                .order("created_at", desc=False)\
+                .execute()
+            
+            return result.data or []
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar câmeras: {e}")
+            return []
+    
+    async def get_camera_by_id(self, camera_id: str) -> Optional[Dict[str, Any]]:
+        """Buscar câmera por ID"""
+        if not self.client:
+            return None
+            
+        try:
+            result = self.client.table("cameras")\
+                .select("*")\
+                .eq("id", camera_id)\
+                .single()\
+                .execute()
+            
+            return result.data
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar câmera {camera_id}: {e}")
+            return None
+    
+    async def create_camera(self, camera_data: Dict[str, Any]) -> Optional[str]:
+        """Criar nova câmera"""
+        if not self.client:
+            return None
+            
+        try:
+            # Adicionar timestamps
+            camera_data.update({
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "status": "offline"  # Status inicial
+            })
+            
+            result = self.client.table("cameras")\
+                .insert(camera_data)\
+                .execute()
+            
+            if result.data:
+                return result.data[0]["id"]
+            return None
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar câmera: {e}")
+            return None
+    
+    async def update_camera(self, camera_id: str, camera_data: Dict[str, Any]) -> bool:
+        """Atualizar câmera existente"""
+        if not self.client:
+            return False
+            
+        try:
+            # Adicionar timestamp de atualização
+            camera_data["updated_at"] = datetime.now().isoformat()
+            
+            result = self.client.table("cameras")\
+                .update(camera_data)\
+                .eq("id", camera_id)\
+                .execute()
+            
+            return len(result.data) > 0
+            
+        except Exception as e:
+            logger.error(f"Erro ao atualizar câmera {camera_id}: {e}")
+            return False
+    
+    async def delete_camera(self, camera_id: str) -> bool:
+        """Remover câmera"""
+        if not self.client:
+            return False
+            
+        try:
+            result = self.client.table("cameras")\
+                .delete()\
+                .eq("id", camera_id)\
+                .execute()
+            
+            return len(result.data) > 0
+            
+        except Exception as e:
+            logger.error(f"Erro ao remover câmera {camera_id}: {e}")
+            return False
+    
+    async def update_camera_status(self, camera_id: str, status: str) -> bool:
+        """Atualizar status da câmera"""
+        if not self.client:
+            return False
+            
+        try:
+            result = self.client.table("cameras")\
+                .update({
+                    "status": status,
+                    "last_seen": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                })\
+                .eq("id", camera_id)\
+                .execute()
+            
+            return len(result.data) > 0
+            
+        except Exception as e:
+            logger.error(f"Erro ao atualizar status da câmera {camera_id}: {e}")
+            return False
+    
+    async def get_camera_events(
+        self, 
+        camera_id: str, 
+        start_date: Optional[str] = None, 
+        end_date: Optional[str] = None, 
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Buscar eventos de uma câmera específica"""
+        if not self.client:
+            return []
+            
+        try:
+            query = self.client.table("camera_events")\
+                .select("*")\
+                .eq("camera_id", camera_id)\
+                .order("timestamp", desc=True)\
+                .limit(limit)
+            
+            if start_date:
+                query = query.gte("timestamp", start_date)
+            if end_date:
+                query = query.lte("timestamp", end_date)
+            
+            result = query.execute()
+            return result.data or []
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar eventos da câmera {camera_id}: {e}")
+            return []
+
 # Alias para compatibilidade com módulos AI
 DatabaseManager = SupabaseManager

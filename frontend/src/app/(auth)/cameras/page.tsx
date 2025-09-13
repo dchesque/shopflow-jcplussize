@@ -14,65 +14,13 @@ import {
   WifiOff,
   AlertTriangle
 } from 'lucide-react'
-// import { CameraGrid } from '@/components/cameras/CameraGrid'
-// import { useCameras, useCameraHealth } from '@/hooks/useCameras'
-// import { Button } from '@/components/ui/button'
-// import { Camera as CameraType } from '@/types'
-// import { cn } from '@/lib/utils'
+import { CameraGrid } from '@/components/cameras/CameraGrid'
+import { useCameras, useCameraHealth } from '@/hooks/useCameras'
+import { Button } from '@/components/ui/button'
+import { Camera as CameraType } from '@/types'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
-// Mock types and utilities for Docker build
-type CameraType = {
-  id: string;
-  name: string;
-  status: 'online' | 'offline';
-  location: string;
-  peopleCount?: number;
-  customersCount?: number;
-  employeesCount?: number;
-};
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
-
-const Button = ({ children, className = "", onClick, ...props }: any) => (
-  <button className={`px-4 py-2 rounded-md font-medium ${className}`} onClick={onClick} {...props}>
-    {children}
-  </button>
-);
-
-// Mock hooks
-const useCameras = () => ({
-  cameras: [] as Array<{ id: string; name: string; location: string; status: 'online' | 'offline'; peopleCount?: number; customersCount?: number; employeesCount?: number }>,
-  isLoading: false,
-  refetch: () => {},
-  captureSnapshot: (cameraId: string) => Promise.resolve('mock-snapshot-url'),
-  processFrame: () => {}
-});
-
-const useCameraHealth = () => ({
-  health: {
-    detector_loaded: true,
-    analytics_initialized: true
-  },
-  isHealthy: true
-});
-
-// Mock CameraGrid component
-const CameraGrid = ({ cameras, onCameraSelect }: any) => (
-  <div className="p-4 border rounded-lg">
-    <p className="text-gray-600">Grid de câmeras em desenvolvimento.</p>
-    <div className="grid grid-cols-2 gap-4 mt-4">
-      <div className="p-4 bg-gray-100 rounded-lg">
-        <p className="font-medium">Câmera 1</p>
-        <p className="text-sm text-gray-600">Entrada Principal</p>
-      </div>
-      <div className="p-4 bg-gray-100 rounded-lg">
-        <p className="font-medium">Câmera 2</p>
-        <p className="text-sm text-gray-600">Caixa</p>
-      </div>
-    </div>
-  </div>
-);
 
 export default function CamerasPage() {
   const { cameras, isLoading, refetch, captureSnapshot, processFrame } = useCameras()

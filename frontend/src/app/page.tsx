@@ -1,4 +1,5 @@
 import { ShoppingBag, Users, TrendingUp, Clock } from 'lucide-react'
+import Link from 'next/link'
 
 export default function HomePage() {
   return (
@@ -43,9 +44,11 @@ export default function HomePage() {
         </div>
 
         {/* CTA Button */}
-        <button className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-4 rounded-xl font-semibold shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:scale-105 transition-all duration-200">
-          Acessar Dashboard
-        </button>
+        <Link href="/dashboard">
+          <button className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-4 rounded-xl font-semibold shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:scale-105 transition-all duration-200">
+            Acessar Dashboard
+          </button>
+        </Link>
 
         {/* Status */}
         <div className="mt-8 text-center">

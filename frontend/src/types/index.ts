@@ -26,21 +26,29 @@ export interface Employee {
 export interface Camera {
   id: string
   name: string
-  location: string
   rtsp_url: string
-  ip_address: string
-  port: number
-  username?: string
+  location: string
   status: 'online' | 'offline' | 'error'
   fps: number
+  resolution: string
+  confidence_threshold: number
+  line_position: number
+  detection_zone: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  is_active: boolean
   created_at: string
+  updated_at: string
   last_seen?: string
-  stream_url?: string
-  resolution?: string
+  ip_address?: string
+  port?: number
+  peopleCount?: number
+  customersCount?: number
+  employeesCount?: number
   detections?: Detection[]
-  peopleCount: number
-  customersCount: number
-  employeesCount: number
 }
 
 export interface Detection {
@@ -83,4 +91,41 @@ export interface AuthStore {
   isAuthenticated: boolean
   setUser: (user: any) => void
   logout: () => void
+}
+
+// Camera-specific types
+export interface CameraFormData {
+  name: string
+  rtsp_url: string
+  location: string
+  fps: number
+  resolution: string
+  confidence_threshold: number
+  line_position: number
+  detection_zone: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  is_active: boolean
+}
+
+export interface CameraHealth {
+  detector_loaded: boolean
+  analytics_initialized: boolean
+  modules: {
+    face_recognition: boolean
+    behavior_analysis: boolean
+    group_detection: boolean
+    temporal_analysis: boolean
+  }
+}
+
+export interface CameraConnectionTest {
+  success: boolean
+  status: 'online' | 'offline'
+  message: string
+  camera_id: string
+  latency?: number
 }

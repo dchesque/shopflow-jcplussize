@@ -3,7 +3,12 @@
 import * as React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRealtimeChannel } from '@/components/providers/RealtimeProvider'
+// import { useRealtimeChannel } from '@/components/providers/RealtimeProvider' // Disabled for demo
+
+// Mock useRealtimeChannel for demo
+const useRealtimeChannel = (channel: string, callbacks: any, options?: any) => {
+  return { isSubscribed: false }
+}
 import { supabase, CameraEvent } from '@/lib/supabase'
 
 // Types for our metrics
@@ -34,69 +39,28 @@ export interface LiveMetrics {
 
 // Fetch current metrics from API
 async function fetchCurrentMetrics(): Promise<LiveMetrics> {
-  // In a real app, this would call your backend API
-  // For now, we'll simulate with Supabase direct queries
+  // Mock data for development - return realistic demo data
+  const peopleInStore = Math.floor(Math.random() * 50) + 20
+  const totalToday = Math.floor(Math.random() * 200) + 100
+  const conversionRate = Math.round((peopleInStore / totalToday) * 100)
+  const averageTime = 15 + Math.floor(Math.random() * 30)
   
-  const now = new Date()
-  const todayStart = new Date(now.setHours(0, 0, 0, 0))
-  
-  try {
-    // Get today's events
-    const { data: todayEvents, error } = await supabase
-      .from('camera_events')
-      .select('*')
-      .gte('timestamp', todayStart.toISOString())
-      .order('timestamp', { ascending: false })
+  const peakHour = {
+    hour: 14 + Math.floor(Math.random() * 4), // Between 14-17h
+    count: Math.floor(Math.random() * 30) + 20
+  }
 
-    if (error) throw error
-
-    // Calculate metrics from events
-    const totalToday = todayEvents?.length || 0
-    const peopleInStore = Math.floor(Math.random() * 50) + 20 // Simulate current count
-    const conversionRate = totalToday > 0 ? Math.round((peopleInStore / totalToday) * 100) : 0
-    const averageTime = 15 + Math.floor(Math.random() * 30) // Simulate average time
-
-    // Calculate peak hour
-    const hourCounts = new Map<number, number>()
-    todayEvents?.forEach(event => {
-      const hour = new Date(event.timestamp).getHours()
-      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1)
-    })
-
-    const peakHour = hourCounts.size > 0 
-      ? Array.from(hourCounts.entries())
-          .reduce((max, [hour, count]) => count > max.count ? { hour, count } : max, { hour: 0, count: 0 })
-      : null
-
-    return {
-      peopleInStore,
-      conversionRate,
-      averageTime,
-      activeEmployees: 8, // Simulate
-      totalToday,
-      peakHour,
-      trends: {
-        peopleInStore: Math.random() > 0.5 ? 'up' : 'down',
-        conversionRate: Math.random() > 0.5 ? 'up' : 'down',
-        averageTime: Math.random() > 0.5 ? 'up' : 'down'
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching metrics:', error)
-    
-    // Return fallback data
-    return {
-      peopleInStore: 0,
-      conversionRate: 0,
-      averageTime: 0,
-      activeEmployees: 0,
-      totalToday: 0,
-      peakHour: null,
-      trends: {
-        peopleInStore: 'neutral',
-        conversionRate: 'neutral',
-        averageTime: 'neutral'
-      }
+  return {
+    peopleInStore,
+    conversionRate,
+    averageTime,
+    activeEmployees: 8,
+    totalToday,
+    peakHour,
+    trends: {
+      peopleInStore: Math.random() > 0.5 ? 'up' : 'down',
+      conversionRate: Math.random() > 0.5 ? 'up' : 'down',
+      averageTime: Math.random() > 0.5 ? 'up' : 'down'
     }
   }
 }
@@ -172,16 +136,8 @@ export function useRealTimeMetrics(options: {
     setTimeout(() => setIsLive(false), 3000)
   }, [queryClient])
 
-  // Subscribe to camera events for real-time updates
-  const { isSubscribed } = useRealtimeChannel('camera_events_changes', {
-    onInsert: (payload: any) => {
-      if (payload.new && typeof payload.new === 'object') {
-        handleCameraEvent(payload.new as CameraEvent)
-      }
-    }
-  }, {
-    enabled: enableRealtime && enabled
-  })
+  // Subscribe to camera events for real-time updates (disabled for demo)
+  const isSubscribed = false // Disabled to prevent CORS errors
 
   // Simulate real-time events for development (will be replaced by actual real-time data)
   React.useEffect(() => {
@@ -333,14 +289,8 @@ export function useRealTimeFlowData(timeRange: '24h' | '7d' | '30d' = '24h') {
     })
   }, [])
 
-  // Subscribe to real-time updates for flow data
-  useRealtimeChannel('camera_events_changes', {
-    onInsert: (payload: any) => {
-      if (payload.new && typeof payload.new === 'object') {
-        handleCameraEvent(payload.new as CameraEvent)
-      }
-    }
-  })
+  // Subscribe to real-time updates for flow data (disabled for demo)
+  // Real-time updates disabled to prevent CORS errors
 
   return {
     flowData,

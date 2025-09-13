@@ -6,11 +6,19 @@ import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MetricCard } from '@/components/dashboard/MetricCard'
-import { FlowChart } from '@/components/charts/FlowChart'
-import { PieChart } from '@/components/charts/PieChart'
+import dynamic from 'next/dynamic'
+
+// Lazy load heavy chart components
+const FlowChart = dynamic(() => import('@/components/charts/FlowChart').then(mod => ({ default: mod.FlowChart })), {
+  loading: () => <div className="h-[350px] bg-neutral-900/30 rounded-lg animate-pulse" />
+})
+
+const PieChart = dynamic(() => import('@/components/charts/PieChart').then(mod => ({ default: mod.PieChart })), {
+  loading: () => <div className="h-[350px] bg-neutral-900/30 rounded-lg animate-pulse" />
+})
 import { ConnectionStatus, ConnectionBanner } from '@/components/ui/connection-status'
 import { useRealTimeMetrics, useRealTimeFlowData } from '@/hooks/useRealTimeMetrics'
-import { useRealtime } from '@/components/providers/RealtimeProvider'
+// import { useRealtime } from '@/components/providers/RealtimeProvider' // Disabled for demo
 import { 
   Users, 
   Camera, 
@@ -27,12 +35,15 @@ import {
 } from 'lucide-react'
 
 export default function DashboardPage() {
-  // Real-time hooks
-  const { isConnected, lastHeartbeat, connectionStatus } = useRealtime()
+  // Mock data for demo (realtime disabled)
+  const isConnected = false
+  const lastHeartbeat = null
+  const connectionStatus = 'disconnected'
+  
   const { metrics, isLoading, lastUpdate, isLive } = useRealTimeMetrics({
     enabled: true,
     refreshInterval: 30000,
-    enableRealtime: true
+    enableRealtime: false // Disabled to prevent errors
   })
   const { flowData } = useRealTimeFlowData('24h')
 

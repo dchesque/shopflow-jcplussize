@@ -110,14 +110,16 @@ export function MetricCard({
                     className="text-3xl font-bold text-white"
                     initial={{ scale: 0.8 }}
                     animate={{ 
-                      scale: isLive ? [1, 1.05, 1] : 1,
-                      color: isLive ? ["#ffffff", "#10b981", "#ffffff"] : "#ffffff"
+                      scale: isLive ? 1.05 : 1,
+                      color: isLive ? "#10b981" : "#ffffff"
                     }}
                     transition={{ 
-                      type: "spring", 
+                      type: isLive ? "tween" : "spring", 
                       stiffness: 300, 
                       damping: 25,
-                      duration: isLive ? 0.6 : 0.3
+                      duration: isLive ? 0.3 : 0.2,
+                      repeat: isLive ? 1 : 0,
+                      repeatType: "reverse"
                     }}
                     key={`${value}-${isLive}`}
                   >

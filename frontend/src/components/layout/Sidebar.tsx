@@ -137,6 +137,7 @@ export function Sidebar({ className }: SidebarProps) {
                                 >
                                   <Link
                                     href={child.href}
+                                    prefetch={true}
                                     className={cn(
                                       "flex items-center gap-3 p-2 rounded-lg text-sm transition-all duration-200",
                                       "hover:bg-neutral-800/30 hover:text-white group",
@@ -160,6 +161,7 @@ export function Sidebar({ className }: SidebarProps) {
                     ) : (
                       <Link
                         href={item.href}
+                        prefetch={true}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-lg text-sm font-medium transition-all duration-200",
                           "hover:bg-neutral-800/50 hover:text-white group hover:scale-105",

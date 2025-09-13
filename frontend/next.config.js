@@ -6,6 +6,12 @@ const nextConfig = {
   // React strict mode
   reactStrictMode: true,
   
+  // Suppress hydration warnings for development
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  
   // Compressão
   compress: true,
   
@@ -36,6 +42,19 @@ const nextConfig = {
   experimental: {
     // Otimização de imports
     optimizePackageImports: ['lucide-react', 'recharts', '@tanstack/react-query'],
+    // Turbopack optimizations
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+    // Faster compilation
+    useDeploymentId: false,
+    // Faster builds
+    typedRoutes: false,
   },
   
   // Configuração do Webpack

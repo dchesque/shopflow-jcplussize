@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime
 import cv2
 import numpy as np
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import os
 import asyncio
 from loguru import logger
@@ -18,6 +18,8 @@ from core.detector import YOLOPersonDetector
 from core.ai.smart_analytics_engine import SmartAnalyticsEngine  # DESCOMENTAR
 from core.database import SupabaseManager
 from core.app_state import get_smart_engine  # ADICIONAR
+from core.config import settings
+from models.api_models import CameraConfigData
 
 router = APIRouter(prefix="/api/camera", tags=["camera"])
 security = HTTPBearer()
@@ -198,3 +200,192 @@ async def test_camera_endpoint(
         'timestamp': datetime.now().isoformat(),
         'server': 'ShopFlow API v1.0'
     }
+
+# ============================================================================
+# CRUD ENDPOINTS PARA GERENCIAMENTO DE CÂMERAS
+# ============================================================================
+
+@router.get("/")
+async def list_cameras():
+    """📋 Listar todas as câmeras configuradas"""
+    try:
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        cameras = await supabase.get_cameras()
+        return {
+            'success': True,
+            'cameras': cameras,
+            'total': len(cameras)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao listar câmeras: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/")
+async def create_camera(camera_data: dict):
+    """➕ Criar nova configuração de câmera"""
+    try:
+        # Validar dados
+        camera_config = CameraConfigData(**camera_data)
+        
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        camera_id = await supabase.create_camera(camera_config.dict())
+        logger.info(f"📷 Nova câmera criada: {camera_id}")
+        
+        return {
+            'success': True,
+            'camera_id': camera_id,
+            'message': 'Câmera criada com sucesso'
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar câmera: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{camera_id}")
+async def get_camera(camera_id: str):
+    """🔍 Obter detalhes de uma câmera específica"""
+    try:
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        camera = await supabase.get_camera_by_id(camera_id)
+        if not camera:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+            
+        return {
+            'success': True,
+            'camera': camera
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao obter câmera: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{camera_id}")
+async def update_camera(camera_id: str, camera_data: dict):
+    """✏️ Atualizar configuração de uma câmera"""
+    try:
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        success = await supabase.update_camera(camera_id, camera_data)
+        if not success:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+            
+        logger.info(f"📷 Câmera atualizada: {camera_id}")
+        
+        return {
+            'success': True,
+            'message': 'Câmera atualizada com sucesso'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao atualizar câmera: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{camera_id}")
+async def delete_camera(camera_id: str):
+    """🗑️ Remover uma câmera"""
+    try:
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        success = await supabase.delete_camera(camera_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+            
+        logger.info(f"📷 Câmera removida: {camera_id}")
+        
+        return {
+            'success': True,
+            'message': 'Câmera removida com sucesso'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao remover câmera: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{camera_id}/test-connection")
+async def test_camera_connection(camera_id: str):
+    """🔗 Testar conexão com uma câmera específica"""
+    try:
+        from core.database import SupabaseManager
+        from core.config import settings
+        import cv2
+        
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        camera = await supabase.get_camera_by_id(camera_id)
+        if not camera:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+        
+        # Tentar conectar na câmera via RTSP
+        rtsp_url = camera.get('rtsp_url')
+        if not rtsp_url:
+            raise HTTPException(status_code=400, detail="URL RTSP não configurada")
+        
+        # Teste básico de conexão
+        cap = cv2.VideoCapture(rtsp_url)
+        success = cap.isOpened()
+        
+        if success:
+            ret, frame = cap.read()
+            success = ret and frame is not None
+            
+        cap.release()
+        
+        # Atualizar status da câmera
+        await supabase.update_camera_status(camera_id, 'online' if success else 'offline')
+        
+        return {
+            'success': success,
+            'status': 'online' if success else 'offline',
+            'message': 'Conexão bem-sucedida' if success else 'Falha na conexão',
+            'camera_id': camera_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro ao testar conexão: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{camera_id}/events")
+async def get_camera_events(
+    camera_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 100
+):
+    """📊 Obter eventos recentes de uma câmera"""
+    try:
+        from core.database import SupabaseManager
+        from core.config import settings
+        
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+        
+        events = await supabase.get_camera_events(camera_id, start_date, end_date, limit)
+        
+        return {
+            'success': True,
+            'events': events,
+            'total': len(events),
+            'camera_id': camera_id
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao obter eventos da câmera: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

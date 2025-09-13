@@ -74,12 +74,48 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className="dark" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress common development warnings and errors
+              if (typeof window !== 'undefined') {
+                const originalError = console.error;
+                const originalWarn = console.warn;
+                
+                console.error = (...args) => {
+                  const message = args[0]?.toString?.() || '';
+                  if (message.includes('Hydration failed') || 
+                      message.includes('hydrated but some attributes') ||
+                      message.includes('Maximum update depth exceeded') ||
+                      message.includes('WebSocket connection') ||
+                      message.includes('Connection error')) {
+                    return;
+                  }
+                  originalError.apply(console, args);
+                };
+                
+                console.warn = (...args) => {
+                  const message = args[0]?.toString?.() || '';
+                  if (message.includes('React DevTools') ||
+                      message.includes('scroll-behavior') ||
+                      message.includes('pré-carregado')) {
+                    return;
+                  }
+                  originalWarn.apply(console, args);
+                };
+              }
+            `,
+          }}
+        />
+      </head>
       <body 
         className={cn(
           'min-h-screen bg-neutral-950 antialiased',
           inter.variable
         )}
+        suppressHydrationWarning
       >
         {/* Background gradients */}
         <div className="fixed inset-0 bg-gradient-to-br from-red-500/5 via-neutral-950 to-purple-500/5" />

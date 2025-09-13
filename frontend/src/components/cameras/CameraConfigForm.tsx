@@ -44,27 +44,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 const cameraSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   location: z.string().min(1, 'Localização é obrigatória'),
-  ip_address: z.string().ip('IP inválido'),
-  port: z.number().min(1).max(65535, 'Porta deve estar entre 1 e 65535'),
-  username: z.string().optional(),
-  password: z.string().optional(),
-  stream_url: z.string().url('URL inválida').optional().or(z.literal('')),
-  rtsp_url: z.string().optional(),
-  resolution: z.string().optional(),
-  fps: z.number().min(1).max(60).optional(),
-  quality: z.enum(['low', 'medium', 'high']).optional(),
-  motion_detection: z.boolean(),
-  face_recognition: z.boolean(),
-  privacy_zones: z.array(z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number(),
-    height: z.number(),
-    name: z.string()
-  })).optional(),
-  recording_enabled: z.boolean(),
-  retention_days: z.number().min(1).max(90).optional(),
-  notes: z.string().optional(),
+  rtsp_url: z.string().min(1, 'URL RTSP é obrigatória'),
+  fps: z.number().min(1).max(60, 'FPS deve estar entre 1 e 60'),
+  resolution: z.string().min(1, 'Resolução é obrigatória'),
+  confidence_threshold: z.number().min(0.1).max(1.0, 'Threshold deve estar entre 0.1 e 1.0'),
+  line_position: z.number().min(0).max(100, 'Posição da linha deve estar entre 0 e 100'),
+  detection_zone: z.object({
+    x: z.number().min(0).max(100),
+    y: z.number().min(0).max(100),
+    width: z.number().min(1).max(100),
+    height: z.number().min(1).max(100),
+  }),
+  is_active: z.boolean(),
 });
 
 type CameraFormData = z.infer<typeof cameraSchema>;
@@ -82,7 +73,6 @@ export function CameraConfigForm({
   onCancel,
   isLoading,
 }: CameraConfigFormProps) {
-  const [showPassword, setShowPassword] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [activeTab, setActiveTab] = useState('basic');
@@ -101,21 +91,13 @@ export function CameraConfigForm({
     defaultValues: {
       name: camera?.name || '',
       location: camera?.location || '',
-      ip_address: camera?.ip_address || '',
-      port: camera?.port || 554,
-      username: camera?.username || '',
-      password: camera?.password || '',
-      stream_url: camera?.stream_url || '',
       rtsp_url: camera?.rtsp_url || '',
-      resolution: camera?.resolution || '',
       fps: camera?.fps || 30,
-      quality: camera?.quality || 'medium',
-      motion_detection: camera?.motion_detection ?? true,
-      face_recognition: camera?.face_recognition ?? true,
-      recording_enabled: camera?.recording_enabled ?? false,
-      retention_days: camera?.retention_days || 30,
-      notes: camera?.notes || '',
-      privacy_zones: camera?.privacy_zones || [],
+      resolution: camera?.resolution || '1920x1080',
+      confidence_threshold: camera?.confidence_threshold || 0.5,
+      line_position: camera?.line_position || 50,
+      detection_zone: camera?.detection_zone || { x: 0, y: 0, width: 100, height: 100 },
+      is_active: camera?.is_active ?? true,
     },
   });
 
@@ -126,28 +108,20 @@ export function CameraConfigForm({
       reset({
         name: camera.name,
         location: camera.location,
-        ip_address: camera.ip_address,
-        port: camera.port,
-        username: camera.username || '',
-        password: '', // Don't populate password for security
-        stream_url: camera.stream_url || '',
-        rtsp_url: camera.rtsp_url || '',
-        resolution: camera.resolution || '',
+        rtsp_url: camera.rtsp_url,
         fps: camera.fps || 30,
-        quality: camera.quality || 'medium',
-        motion_detection: camera.motion_detection ?? true,
-        face_recognition: camera.face_recognition ?? true,
-        recording_enabled: camera.recording_enabled ?? false,
-        retention_days: camera.retention_days || 30,
-        notes: camera.notes || '',
-        privacy_zones: camera.privacy_zones || [],
+        resolution: camera.resolution || '1920x1080',
+        confidence_threshold: camera.confidence_threshold || 0.5,
+        line_position: camera.line_position || 50,
+        detection_zone: camera.detection_zone || { x: 0, y: 0, width: 100, height: 100 },
+        is_active: camera.is_active ?? true,
       });
     }
   }, [camera, reset]);
 
   const handleTestConnection = async () => {
     const currentData = watchedValues;
-    if (!currentData.ip_address || !currentData.port) {
+    if (!currentData.rtsp_url) {
       setConnectionStatus('error');
       return;
     }
@@ -156,7 +130,7 @@ export function CameraConfigForm({
     setConnectionStatus('idle');
 
     try {
-      // Simular teste de conexão - na implementação real, fazer chamada para API
+      // In production, this would call the backend API to test camera connection
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Mock response
@@ -185,11 +159,6 @@ export function CameraConfigForm({
     { value: '3840x2160', label: '3840x2160 (4K)' },
   ];
 
-  const qualityOptions = [
-    { value: 'low', label: 'Baixa' },
-    { value: 'medium', label: 'Média' },
-    { value: 'high', label: 'Alta' },
-  ];
 
   return (
     <Dialog open={true} onOpenChange={onCancel}>
@@ -253,33 +222,17 @@ export function CameraConfigForm({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2 space-y-2">
-                      <Label htmlFor="ip_address">Endereço IP *</Label>
-                      <Input
-                        id="ip_address"
-                        placeholder="192.168.1.100"
-                        {...register('ip_address')}
-                        className={errors.ip_address ? 'border-red-500' : ''}
-                      />
-                      {errors.ip_address && (
-                        <p className="text-sm text-red-500">{errors.ip_address.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="port">Porta *</Label>
-                      <Input
-                        id="port"
-                        type="number"
-                        placeholder="554"
-                        {...register('port', { valueAsNumber: true })}
-                        className={errors.port ? 'border-red-500' : ''}
-                      />
-                      {errors.port && (
-                        <p className="text-sm text-red-500">{errors.port.message}</p>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rtsp_url">URL RTSP *</Label>
+                    <Input
+                      id="rtsp_url"
+                      placeholder="rtsp://192.168.1.100:554/stream1"
+                      {...register('rtsp_url')}
+                      className={errors.rtsp_url ? 'border-red-500' : ''}
+                    />
+                    {errors.rtsp_url && (
+                      <p className="text-sm text-red-500">{errors.rtsp_url.message}</p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-4">
@@ -287,7 +240,7 @@ export function CameraConfigForm({
                       type="button"
                       variant="outline"
                       onClick={handleTestConnection}
-                      disabled={testingConnection || !watchedValues.ip_address || !watchedValues.port}
+                      disabled={testingConnection || !watchedValues.rtsp_url}
                       className="flex items-center gap-2"
                     >
                       {testingConnection ? (
@@ -345,65 +298,7 @@ export function CameraConfigForm({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="username">Usuário</Label>
-                      <Input
-                        id="username"
-                        placeholder="admin"
-                        {...register('username')}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Senha</Label>
-                      <div className="relative">
-                        <Input
-                          id="password"
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
-                          {...register('password')}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="stream_url">URL do Stream</Label>
-                    <Input
-                      id="stream_url"
-                      placeholder="http://192.168.1.100:8080/video"
-                      {...register('stream_url')}
-                      className={errors.stream_url ? 'border-red-500' : ''}
-                    />
-                    {errors.stream_url && (
-                      <p className="text-sm text-red-500">{errors.stream_url.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="rtsp_url">URL RTSP</Label>
-                    <Input
-                      id="rtsp_url"
-                      placeholder="rtsp://192.168.1.100:554/stream"
-                      {...register('rtsp_url')}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="resolution">Resolução</Label>
+                      <Label htmlFor="resolution">Resolução *</Label>
                       <Select
                         value={watchedValues.resolution || ''}
                         onValueChange={(value) => setValue('resolution', value)}
@@ -419,10 +314,13 @@ export function CameraConfigForm({
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.resolution && (
+                        <p className="text-sm text-red-500">{errors.resolution.message}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="fps">FPS</Label>
+                      <Label htmlFor="fps">FPS *</Label>
                       <Input
                         id="fps"
                         type="number"
@@ -430,26 +328,54 @@ export function CameraConfigForm({
                         max="60"
                         placeholder="30"
                         {...register('fps', { valueAsNumber: true })}
+                        className={errors.fps ? 'border-red-500' : ''}
                       />
+                      {errors.fps && (
+                        <p className="text-sm text-red-500">{errors.fps.message}</p>
+                      )}
                     </div>
+                  </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="confidence_threshold">Limiar de Confiança *</Label>
                     <div className="space-y-2">
-                      <Label htmlFor="quality">Qualidade</Label>
-                      <Select
-                        value={watchedValues.quality || 'medium'}
-                        onValueChange={(value: 'low' | 'medium' | 'high') => setValue('quality', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {qualityOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="confidence_threshold"
+                        type="number"
+                        min="0.1"
+                        max="1.0"
+                        step="0.01"
+                        placeholder="0.5"
+                        {...register('confidence_threshold', { valueAsNumber: true })}
+                        className={errors.confidence_threshold ? 'border-red-500' : ''}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Nível mínimo de confiança para detectar pessoas (0.1 a 1.0)
+                      </p>
+                      {errors.confidence_threshold && (
+                        <p className="text-sm text-red-500">{errors.confidence_threshold.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="line_position">Posição da Linha (%)</Label>
+                    <div className="space-y-2">
+                      <Input
+                        id="line_position"
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="50"
+                        {...register('line_position', { valueAsNumber: true })}
+                        className={errors.line_position ? 'border-red-500' : ''}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Posição da linha de contagem na tela (0% = topo, 100% = base)
+                      </p>
+                      {errors.line_position && (
+                        <p className="text-sm text-red-500">{errors.line_position.message}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -459,91 +385,100 @@ export function CameraConfigForm({
             <TabsContent value="features" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Recursos de IA</CardTitle>
+                  <CardTitle className="text-lg">Configurações da Câmera</CardTitle>
                   <CardDescription>
-                    Configure os recursos de inteligência artificial
+                    Configure as opções da câmera e zona de detecção
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="motion_detection" className="text-base">
-                        Detecção de Movimento
+                      <Label htmlFor="is_active" className="text-base">
+                        Câmera Ativa
                       </Label>
                       <p className="text-sm text-gray-500">
-                        Detectar e alertar sobre movimento na área de cobertura
+                        Habilitar ou desabilitar o processamento desta câmera
                       </p>
                     </div>
                     <Switch
-                      id="motion_detection"
-                      checked={watchedValues.motion_detection}
-                      onCheckedChange={(checked) => setValue('motion_detection', checked)}
+                      id="is_active"
+                      checked={watchedValues.is_active}
+                      onCheckedChange={(checked) => setValue('is_active', checked)}
                     />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="face_recognition" className="text-base">
-                        Reconhecimento Facial
-                      </Label>
-                      <p className="text-sm text-gray-500">
-                        Identificar funcionários cadastrados (LGPD compliant)
-                      </p>
+                  <div className="space-y-4">
+                    <Label className="text-base">Zona de Detecção (%)</Label>
+                    <p className="text-sm text-gray-500">
+                      Configure a área da imagem onde as detecções serão processadas
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="detection_zone_x">X (posição horizontal)</Label>
+                        <Input
+                          id="detection_zone_x"
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="0"
+                          value={watchedValues.detection_zone?.x || 0}
+                          onChange={(e) => setValue('detection_zone', {
+                            ...watchedValues.detection_zone,
+                            x: parseInt(e.target.value) || 0
+                          })}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="detection_zone_y">Y (posição vertical)</Label>
+                        <Input
+                          id="detection_zone_y"
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="0"
+                          value={watchedValues.detection_zone?.y || 0}
+                          onChange={(e) => setValue('detection_zone', {
+                            ...watchedValues.detection_zone,
+                            y: parseInt(e.target.value) || 0
+                          })}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="detection_zone_width">Largura</Label>
+                        <Input
+                          id="detection_zone_width"
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="100"
+                          value={watchedValues.detection_zone?.width || 100}
+                          onChange={(e) => setValue('detection_zone', {
+                            ...watchedValues.detection_zone,
+                            width: parseInt(e.target.value) || 100
+                          })}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="detection_zone_height">Altura</Label>
+                        <Input
+                          id="detection_zone_height"
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="100"
+                          value={watchedValues.detection_zone?.height || 100}
+                          onChange={(e) => setValue('detection_zone', {
+                            ...watchedValues.detection_zone,
+                            height: parseInt(e.target.value) || 100
+                          })}
+                        />
+                      </div>
                     </div>
-                    <Switch
-                      id="face_recognition"
-                      checked={watchedValues.face_recognition}
-                      onCheckedChange={(checked) => setValue('face_recognition', checked)}
-                    />
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Gravação</CardTitle>
-                  <CardDescription>
-                    Configure as opções de gravação e armazenamento
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="recording_enabled" className="text-base">
-                        Gravação Habilitada
-                      </Label>
-                      <p className="text-sm text-gray-500">
-                        Gravar e armazenar o feed da câmera
-                      </p>
-                    </div>
-                    <Switch
-                      id="recording_enabled"
-                      checked={watchedValues.recording_enabled}
-                      onCheckedChange={(checked) => setValue('recording_enabled', checked)}
-                    />
-                  </div>
-
-                  {watchedValues.recording_enabled && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2"
-                    >
-                      <Label htmlFor="retention_days">Retenção (dias)</Label>
-                      <Input
-                        id="retention_days"
-                        type="number"
-                        min="1"
-                        max="90"
-                        placeholder="30"
-                        {...register('retention_days', { valueAsNumber: true })}
-                      />
-                      <p className="text-xs text-gray-500">
-                        Gravações serão automaticamente excluídas após este período
-                      </p>
-                    </motion.div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>
