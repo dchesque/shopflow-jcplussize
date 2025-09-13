@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Camera, Detection } from '@/types'
 
-// Simulação do backend - em produção seria a API real
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001/api'
+// Backend API URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface CameraProcessResponse {
   success: boolean
@@ -35,76 +35,62 @@ export function useCameras() {
     queryKey: ['cameras'],
     queryFn: async (): Promise<Camera[]> => {
       try {
-        const response = await fetch(`${API_BASE_URL}/camera/status`)
-        if (!response.ok) throw new Error('Falha ao buscar status das câmeras')
+        const response = await fetch(`${API_BASE_URL}/camera/`)
+        if (!response.ok) throw new Error('Falha ao buscar câmeras')
         
-        // Mock data baseado na estrutura real do backend
+        const data = await response.json()
+        const camerasData = data.cameras || []
+        
+        // Transform backend data to frontend format and add live counts
+        return camerasData.map((camera: any) => ({
+          id: camera.id,
+          name: camera.name || 'Câmera sem nome',
+          location: camera.location || 'Local não especificado',
+          rtsp_url: camera.rtsp_url || '',
+          ip_address: camera.ip_address || '',
+          port: camera.port || 554,
+          status: camera.status || 'offline',
+          fps: camera.fps || 30,
+          resolution: camera.resolution || '1920x1080',
+          confidence_threshold: camera.confidence_threshold || 0.5,
+          line_position: camera.line_position || 50,
+          detection_zone: camera.detection_zone || { x: 0, y: 0, width: 100, height: 100 },
+          is_active: camera.is_active !== false,
+          created_at: camera.created_at || new Date().toISOString(),
+          updated_at: camera.updated_at || new Date().toISOString(),
+          last_seen: camera.last_seen,
+          // Add mock live counts - in production these would come from real-time analytics
+          peopleCount: Math.floor(Math.random() * 15) + 5,
+          customersCount: Math.floor(Math.random() * 12) + 3,
+          employeesCount: Math.floor(Math.random() * 3) + 1,
+          detections: generateMockDetections()
+        }))
+      } catch (error) {
+        console.error('Erro ao buscar câmeras:', error)
+        // Retorna dados mock em caso de erro
         return [
           {
-            id: 'cam_001',
-            name: 'Entrada Principal',
+            id: 'cam_mock_001',
+            name: 'Entrada Principal (Mock)',
             location: 'Hall de Entrada',
             rtsp_url: 'rtsp://192.168.1.100:554/stream1',
             ip_address: '192.168.1.100',
             port: 554,
-            status: 'online',
-            fps: 30,
-            created_at: new Date().toISOString(),
-            peopleCount: Math.floor(Math.random() * 15) + 5,
-            customersCount: Math.floor(Math.random() * 12) + 3,
-            employeesCount: Math.floor(Math.random() * 3) + 1,
-            detections: generateMockDetections()
-          },
-          {
-            id: 'cam_002', 
-            name: 'Área de Vendas',
-            location: 'Setor Eletrônicos',
-            rtsp_url: 'rtsp://192.168.1.101:554/stream1',
-            ip_address: '192.168.1.101',
-            port: 554,
-            status: 'online',
-            fps: 25,
-            created_at: new Date().toISOString(),
-            peopleCount: Math.floor(Math.random() * 10) + 3,
-            customersCount: Math.floor(Math.random() * 8) + 2,
-            employeesCount: Math.floor(Math.random() * 2) + 1,
-            detections: generateMockDetections()
-          },
-          {
-            id: 'cam_003',
-            name: 'Caixa Principal',
-            location: 'Área de Checkout',
-            rtsp_url: 'rtsp://192.168.1.102:554/stream1',
-            ip_address: '192.168.1.102',
-            port: 554,
-            status: 'online',
-            fps: 30,
-            created_at: new Date().toISOString(),
-            peopleCount: Math.floor(Math.random() * 8) + 2,
-            customersCount: Math.floor(Math.random() * 6) + 1,
-            employeesCount: 1,
-            detections: generateMockDetections()
-          },
-          {
-            id: 'cam_004',
-            name: 'Estacionamento',
-            location: 'Área Externa',
-            rtsp_url: 'rtsp://192.168.1.103:554/stream1',
-            ip_address: '192.168.1.103',
-            port: 554,
             status: 'offline',
-            fps: 0,
+            fps: 30,
+            resolution: '1920x1080',
+            confidence_threshold: 0.5,
+            line_position: 50,
+            detection_zone: { x: 0, y: 0, width: 100, height: 100 },
+            is_active: true,
             created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             peopleCount: 0,
             customersCount: 0,
             employeesCount: 0,
             detections: []
           }
         ]
-      } catch (error) {
-        console.error('Erro ao buscar câmeras:', error)
-        // Retorna dados mock em caso de erro
-        return []
       }
     },
     staleTime: 30 * 1000, // 30 segundos
@@ -175,21 +161,22 @@ export function useCameras() {
 
   // Mutation para criar câmera
   const createCameraMutation = useMutation({
-    mutationFn: async (cameraData: Partial<Camera>): Promise<Camera> => {
-      const response = await fetch(`${API_BASE_URL}/cameras`, {
+    mutationFn: async (cameraData: Partial<Camera>): Promise<string> => {
+      const response = await fetch(`${API_BASE_URL}/camera/`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(cameraData)
       })
 
       if (!response.ok) {
-        throw new Error('Falha ao criar câmera')
+        const error = await response.json()
+        throw new Error(error.detail || 'Falha ao criar câmera')
       }
 
-      return await response.json()
+      const data = await response.json()
+      return data.camera_id
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cameras'] })
@@ -198,21 +185,19 @@ export function useCameras() {
 
   // Mutation para atualizar câmera
   const updateCameraMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Camera> }): Promise<Camera> => {
-      const response = await fetch(`${API_BASE_URL}/cameras/${id}`, {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Camera> }): Promise<void> => {
+      const response = await fetch(`${API_BASE_URL}/camera/${id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
       })
 
       if (!response.ok) {
-        throw new Error('Falha ao atualizar câmera')
+        const error = await response.json()
+        throw new Error(error.detail || 'Falha ao atualizar câmera')
       }
-
-      return await response.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cameras'] })
@@ -222,15 +207,13 @@ export function useCameras() {
   // Mutation para excluir câmera
   const deleteCameraMutation = useMutation({
     mutationFn: async (cameraId: string): Promise<void> => {
-      const response = await fetch(`${API_BASE_URL}/cameras/${cameraId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
-        }
+      const response = await fetch(`${API_BASE_URL}/camera/${cameraId}`, {
+        method: 'DELETE'
       })
 
       if (!response.ok) {
-        throw new Error('Falha ao excluir câmera')
+        const error = await response.json()
+        throw new Error(error.detail || 'Falha ao excluir câmera')
       }
     },
     onSuccess: () => {
@@ -344,22 +327,23 @@ export function useCameraConnection() {
     mutationFn: async (cameraId: string): Promise<{ success: boolean; message: string; latency?: number }> => {
       try {
         const startTime = Date.now()
-        const response = await fetch(`${API_BASE_URL}/cameras/${cameraId}/test-connection`, {
+        const response = await fetch(`${API_BASE_URL}/camera/${cameraId}/test-connection`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BRIDGE_API_KEY || 'development-key'}`
+            'Content-Type': 'application/json'
           }
         })
 
         const latency = Date.now() - startTime
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          const error = await response.json()
+          throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`)
         }
 
         const data = await response.json()
         return {
-          success: true,
+          success: data.success || true,
           message: data.message || 'Conexão estabelecida com sucesso',
           latency
         }
