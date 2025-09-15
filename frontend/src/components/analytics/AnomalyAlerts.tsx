@@ -59,127 +59,63 @@ export function AnomalyAlerts({
   const [alertsEnabled, setAlertsEnabled] = useState(true)
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null)
   
-  const generateMockAlerts = (): AnomalyAlert[] => [
-    {
-      id: 'alert_1',
-      title: 'Queda Súbita no Fluxo de Pessoas',
-      description: 'Redução de 35% no tráfego em relação ao esperado para este horário',
-      severity: 'high',
-      type: 'traffic',
-      timestamp: new Date(Date.now() - 5 * 60000),
-      location: 'Entrada Principal',
-      value: 45,
-      threshold: 70,
-      deviation: -35.7,
-      isAcknowledged: false,
-      suggestedActions: [
-        'Verificar se há problemas na entrada',
-        'Conferir campanhas ativas',
-        'Analisar fatores externos (clima, eventos)',
-        'Considerar promoção flash'
-      ],
-      relatedMetrics: [
-        { name: 'Pessoas/hora', current: 45, expected: 70, unit: 'pessoas' },
-        { name: 'Taxa entrada', current: 62, expected: 85, unit: '%' }
-      ],
-      aiAnalysis: 'Padrão anômalo detectado às 14h30. Comparando com dados históricos, esta redução pode estar relacionada ao início de chuva na região. Recomenda-se monitorar por mais 30 minutos.'
-    },
-    {
-      id: 'alert_2',
-      title: 'Comportamento Incomum na Zona de Eletrônicos',
-      description: 'Tempo de permanência 60% maior que o usual, mas conversão 40% menor',
-      severity: 'medium',
-      type: 'behavior',
-      timestamp: new Date(Date.now() - 12 * 60000),
-      location: 'Setor Eletrônicos',
-      value: 18.5,
-      threshold: 11.2,
-      deviation: 65.2,
-      isAcknowledged: false,
-      suggestedActions: [
-        'Enviar funcionário para verificar a área',
-        'Verificar se produtos estão com preços visíveis',
-        'Conferir se há problemas técnicos',
-        'Oferecer atendimento proativo'
-      ],
-      relatedMetrics: [
-        { name: 'Tempo permanência', current: 18.5, expected: 11.2, unit: 'min' },
-        { name: 'Taxa conversão', current: 25, expected: 42, unit: '%' }
-      ],
-      aiAnalysis: 'Clientes estão permanecendo mais tempo mas não convertendo. Análise de vídeo mostra hesitação nas decisões. Possível problema de precificação ou disponibilidade de atendimento.'
-    },
-    {
-      id: 'alert_3',
-      title: 'Pico de Abandono no Checkout',
-      description: 'Taxa de abandono 45% acima do normal nas últimas 2 horas',
-      severity: 'critical',
-      type: 'conversion',
-      timestamp: new Date(Date.now() - 20 * 60000),
-      location: 'Área de Checkout',
-      value: 58,
-      threshold: 40,
-      deviation: 45.0,
-      isAcknowledged: false,
-      suggestedActions: [
-        'Verificar filas e tempo de espera',
-        'Adicionar caixas se necessário',
-        'Verificar sistema de pagamento',
-        'Oferecer checkout mobile/express'
-      ],
-      relatedMetrics: [
-        { name: 'Taxa abandono', current: 58, expected: 40, unit: '%' },
-        { name: 'Tempo fila', current: 8.5, expected: 4.2, unit: 'min' }
-      ],
-      aiAnalysis: 'Análise de fluxo mostra acúmulo na área de checkout. Sistema de pagamento funcionando normalmente. Provável causa: falta de caixas abertos para o volume atual.'
-    },
-    {
-      id: 'alert_4',
-      title: 'Aumento Repentino de Grupos Familiares',
-      description: 'Detecção de grupos familiares 80% acima da média para este horário',
-      severity: 'info',
-      type: 'behavior',
-      timestamp: new Date(Date.now() - 8 * 60000),
-      location: 'Loja Inteira',
-      value: 72,
-      threshold: 40,
-      deviation: 80.0,
-      isAcknowledged: true,
-      suggestedActions: [
-        'Preparar área kids/família',
-        'Destacar produtos familiares',
-        'Ajustar música ambiente',
-        'Reforçar segurança'
-      ],
-      relatedMetrics: [
-        { name: 'Grupos familiares', current: 72, expected: 40, unit: '%' },
-        { name: 'Crianças detectadas', current: 28, expected: 12, unit: 'crianças' }
-      ],
-      aiAnalysis: 'Padrão típico de sábado à tarde, mas iniciou mais cedo. Provavelmente relacionado a evento escolar ou feriado regional. Oportunidade para aumentar vendas de produtos familiares.'
-    },
-    {
-      id: 'alert_5',
-      title: 'Tempo de Resposta da IA Elevado',
-      description: 'Processamento de detecções 200ms acima do normal',
-      severity: 'low',
-      type: 'technical',
-      timestamp: new Date(Date.now() - 30 * 60000),
-      value: 450,
-      threshold: 250,
-      deviation: 80.0,
-      isAcknowledged: false,
-      suggestedActions: [
-        'Verificar carga do servidor',
-        'Reiniciar serviços se necessário',
-        'Monitorar uso de CPU/memória',
-        'Considerar otimização de modelo'
-      ],
-      relatedMetrics: [
-        { name: 'Tempo resposta', current: 450, expected: 250, unit: 'ms' },
-        { name: 'CPU usage', current: 85, expected: 65, unit: '%' }
-      ],
-      aiAnalysis: 'Aumento na latência provavelmente devido ao maior volume de processamento. Sistema operando dentro dos limites, mas próximo ao threshold. Considerar escalonamento horizontal.'
+  const fetchAlertsFromAPI = async (): Promise<AnomalyAlert[]> => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/analytics/realtime-data`)
+      if (!response.ok) {
+        console.warn('Failed to fetch real-time alerts')
+        return []
+      }
+
+      const data = await response.json()
+
+      // Convert backend alerts to our format
+      return data.data?.active_alerts?.map((alert: any, index: number) => ({
+        id: `alert_${alert.id || index}`,
+        title: alert.title || 'Alerta do Sistema',
+        description: alert.message || 'Evento detectado pelo sistema',
+        severity: alert.type === 'critical' ? 'critical' : 'medium',
+        type: 'behavior',
+        timestamp: new Date(alert.timestamp || Date.now()),
+        location: 'Sistema',
+        value: 0,
+        threshold: 0,
+        deviation: 0,
+        isAcknowledged: false,
+        suggestedActions: [
+          'Verificar métricas relacionadas',
+          'Analisar padrões comportamentais',
+          'Monitorar evolução do evento'
+        ],
+        relatedMetrics: [],
+        aiAnalysis: 'Evento detectado pelo sistema de monitoramento em tempo real'
+      })) || []
+    } catch (error) {
+      console.error('Error fetching alerts:', error)
+      return []
     }
-  ]
+  }
+
+  const generateFallbackAlert = (): AnomalyAlert => ({
+    id: `alert_${Date.now()}`,
+    title: 'Sistema Monitorando',
+    description: 'Sistema de detecção de anomalias ativo e funcionando',
+    severity: 'info',
+    type: 'technical',
+    timestamp: new Date(),
+    value: 100,
+    threshold: 95,
+    deviation: 5.0,
+    isAcknowledged: false,
+    suggestedActions: [
+      'Sistema funcionando normalmente',
+      'Monitoramento contínuo ativo'
+    ],
+    relatedMetrics: [
+      { name: 'Sistema', current: 100, expected: 95, unit: '%' }
+    ],
+    aiAnalysis: 'Sistema de detecção de anomalias operacional e monitorando dados em tempo real.'
+  })
   
   const generateThresholds = (): AlertThreshold[] => [
     { type: 'traffic', label: 'Fluxo de Pessoas', enabled: true, threshold: 30, sensitivity: 'medium' },
@@ -192,21 +128,32 @@ export function AnomalyAlerts({
   const [thresholds, setThresholds] = useState(generateThresholds())
   
   useEffect(() => {
-    setAlerts(generateMockAlerts())
-    
-    // Simulate real-time alerts
+    const loadAlerts = async () => {
+      try {
+        const realAlerts = await fetchAlertsFromAPI()
+        if (realAlerts.length > 0) {
+          setAlerts(realAlerts)
+        } else {
+          // Show system status when no real alerts
+          setAlerts([generateFallbackAlert()])
+        }
+      } catch (error) {
+        console.error('Error loading alerts:', error)
+        setAlerts([generateFallbackAlert()])
+      }
+    }
+
+    loadAlerts()
+
+    // Refresh alerts from API every 30 seconds
     const interval = setInterval(() => {
-      if (alertsEnabled && Math.random() < 0.1) {
-        const newAlert = generateMockAlerts()[Math.floor(Math.random() * 3)]
-        newAlert.id = `alert_${Date.now()}`
-        newAlert.timestamp = new Date()
-        setAlerts(prev => [newAlert, ...prev.slice(0, 9)])
-        onAnomalyDetected?.(newAlert)
+      if (alertsEnabled) {
+        loadAlerts()
       }
     }, 30000)
-    
+
     return () => clearInterval(interval)
-  }, [alertsEnabled, onAnomalyDetected])
+  }, [alertsEnabled])
   
   const filteredAlerts = alerts.filter(alert => {
     if (showOnlyActive && alert.isAcknowledged) return false

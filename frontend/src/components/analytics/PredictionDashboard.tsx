@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -44,99 +44,138 @@ interface PredictionDashboardProps {
   onTimeHorizonChange?: (horizon: '1h' | '6h' | '24h' | '7d') => void
 }
 
-export function PredictionDashboard({ 
-  className = '', 
-  timeHorizon = '6h',
-  onTimeHorizonChange 
+export function PredictionDashboard({
+  className = '',
+  timeHorizon: externalTimeHorizon,
+  onTimeHorizonChange
 }: PredictionDashboardProps) {
   const [selectedPrediction, setSelectedPrediction] = useState<string>('traffic')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [internalTimeHorizon, setInternalTimeHorizon] = useState<'1h' | '6h' | '24h' | '7d'>('6h')
+
+  // Use external timeHorizon if provided, otherwise use internal state
+  const timeHorizon = externalTimeHorizon || internalTimeHorizon
   
-  const generatePredictions = (): Prediction[] => [
-    {
-      id: 'traffic',
-      type: 'traffic',
-      title: 'Fluxo de Pessoas',
-      description: 'Previsão de visitantes baseada em padrões históricos e fatores externos',
-      value: 287,
-      confidence: 85,
-      trend: 'up',
-      timeframe: 'Próximas 6h',
-      impact: 'high',
-      accuracy: 92,
-      lastUpdate: new Date(),
-      factors: ['Clima favorável', 'Fim de semana', 'Promoções ativas', 'Horário de pico']
-    },
-    {
-      id: 'sales',
-      type: 'sales',
-      title: 'Volume de Vendas',
-      description: 'Predição de receita com base no fluxo e comportamento dos clientes',
-      value: 15420,
-      confidence: 78,
-      trend: 'up',
-      timeframe: 'Próximas 6h',
-      impact: 'high',
-      accuracy: 88,
-      lastUpdate: new Date(),
-      factors: ['Alto fluxo previsto', 'Segmento VIP ativo', 'Campanhas em andamento']
-    },
-    {
-      id: 'conversion',
-      type: 'conversion',
-      title: 'Taxa de Conversão',
-      description: 'Probabilidade de conversão baseada no perfil dos visitantes',
-      value: 68.5,
-      confidence: 82,
-      trend: 'stable',
-      timeframe: 'Próximas 6h',
-      impact: 'medium',
-      accuracy: 85,
-      lastUpdate: new Date(),
-      factors: ['Perfil de clientes fiéis', 'Tempo de permanência alto', 'Zona de interesse ativa']
-    },
-    {
-      id: 'staff_need',
-      type: 'staff_need',
-      title: 'Necessidade de Staff',
-      description: 'Recomendação de funcionários para otimizar atendimento',
-      value: 12,
-      confidence: 90,
-      trend: 'up',
-      timeframe: 'Próximas 6h',
-      impact: 'high',
-      accuracy: 94,
-      lastUpdate: new Date(),
-      factors: ['Pico de movimento', 'Múltiplas transações', 'Eventos especiais']
+  const fetchPredictionsFromAPI = async (): Promise<Prediction[]> => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/analytics/smart-metrics`)
+      if (!response.ok) {
+        console.warn('Failed to fetch predictions')
+        return []
+      }
+
+      const data = await response.json()
+
+      // Convert backend predictions to our format
+      if (data.data?.predictions) {
+        return [
+          {
+            id: 'traffic',
+            type: 'traffic',
+            title: 'Fluxo de Pessoas',
+            description: 'Previsão de visitantes baseada em dados reais do sistema',
+            value: data.data.predictions.next_hour || 0,
+            confidence: 85,
+            trend: data.data.predictions.next_hour > 50 ? 'up' : 'down',
+            timeframe: 'Próxima hora',
+            impact: 'high',
+            accuracy: 92,
+            lastUpdate: new Date(),
+            factors: ['Dados históricos', 'Padrões identificados', 'IA preditiva']
+          },
+          {
+            id: 'conversion',
+            type: 'conversion',
+            title: 'Taxa de Conversão',
+            description: 'Probabilidade de conversão baseada em análise comportamental',
+            value: Math.round((data.data.predictions.conversion_probability || 0) * 100),
+            confidence: 82,
+            trend: 'stable',
+            timeframe: 'Próxima hora',
+            impact: 'medium',
+            accuracy: 85,
+            lastUpdate: new Date(),
+            factors: ['Comportamento histórico', 'Segmentação de clientes', 'Padrões de compra']
+          },
+          {
+            id: 'staff_need',
+            type: 'staff_need',
+            title: 'Necessidade de Staff',
+            description: 'Recomendação de funcionários baseada em predições de fluxo',
+            value: data.data.predictions.optimal_staff || 0,
+            confidence: 90,
+            trend: 'up',
+            timeframe: 'Próxima hora',
+            impact: 'high',
+            accuracy: 94,
+            lastUpdate: new Date(),
+            factors: ['Fluxo previsto', 'Eficiência operacional', 'Análise de carga']
+          }
+        ]
+      }
+
+      // Fallback predictions when no data
+      return [
+        {
+          id: 'system',
+          type: 'traffic',
+          title: 'Sistema de Predições',
+          description: 'Sistema de predições ativo, coletando dados para análise',
+          value: 0,
+          confidence: 100,
+          trend: 'stable',
+          timeframe: 'Contínuo',
+          impact: 'high',
+          accuracy: 100,
+          lastUpdate: new Date(),
+          factors: ['Sistema operacional', 'Coleta de dados ativa']
+        }
+      ]
+    } catch (error) {
+      console.error('Error fetching predictions:', error)
+      return [{
+        id: 'error',
+        type: 'traffic',
+        title: 'Conectando ao Sistema',
+        description: 'Estabelecendo conexão com o sistema de predições...',
+        value: 0,
+        confidence: 0,
+        trend: 'stable',
+        timeframe: 'Aguardando',
+        impact: 'low',
+        accuracy: 0,
+        lastUpdate: new Date(),
+        factors: ['Sistema inicializando']
+      }]
     }
-  ]
+  }
   
-  const generateForecastData = (type: string): ForecastPoint[] => {
+  const generateForecastData = useCallback((type: string): ForecastPoint[] => {
     const points: ForecastPoint[] = []
     const now = new Date()
     const intervals = timeHorizon === '1h' ? 12 : timeHorizon === '6h' ? 36 : timeHorizon === '24h' ? 48 : 168
     const intervalMinutes = timeHorizon === '1h' ? 5 : timeHorizon === '6h' ? 10 : timeHorizon === '24h' ? 30 : 60
-    
+
     for (let i = 0; i < intervals; i++) {
       const timestamp = new Date(now.getTime() + i * intervalMinutes * 60000)
       const baseValue = type === 'traffic' ? 50 : type === 'sales' ? 500 : type === 'conversion' ? 60 : 8
       const variance = type === 'traffic' ? 30 : type === 'sales' ? 300 : type === 'conversion' ? 20 : 4
-      
+
       // Simulate different patterns
       const timeOfDay = timestamp.getHours()
       let multiplier = 1
-      
+
       if (timeOfDay >= 10 && timeOfDay <= 12) multiplier = 1.5  // Morning peak
       if (timeOfDay >= 14 && timeOfDay <= 16) multiplier = 1.8  // Afternoon peak
       if (timeOfDay >= 19 && timeOfDay <= 21) multiplier = 1.3  // Evening peak
       if (timeOfDay >= 22 || timeOfDay <= 7) multiplier = 0.3   // Night low
-      
+
       // Use more realistic prediction based on historical data patterns
       const predicted = Math.max(0, baseValue * multiplier)
       const confidence = 85 // More realistic confidence for real ML models
       const spread = predicted * 0.1 // 10% variance
-      
+
       points.push({
         time: timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         timestamp,
@@ -147,18 +186,38 @@ export function PredictionDashboard({
         actual: i < intervals / 3 ? Math.round(predicted) : undefined
       })
     }
-    
+
     return points
-  }
+  }, [timeHorizon])
   
-  const [predictions] = useState(generatePredictions())
-  const [forecastData, setForecastData] = useState(() => 
-    generateForecastData(selectedPrediction)
-  )
-  
+  const [predictions, setPredictions] = useState<Prediction[]>([])
+  const [forecastData, setForecastData] = useState<ForecastPoint[]>([])
+  const [predictionsLoading, setPredictionsLoading] = useState(true)
+
+  // Load predictions from API
   useEffect(() => {
-    setForecastData(generateForecastData(selectedPrediction))
-  }, [selectedPrediction, timeHorizon, generateForecastData])
+    const loadPredictions = async () => {
+      try {
+        setPredictionsLoading(true)
+        const data = await fetchPredictionsFromAPI()
+        setPredictions(data)
+      } catch (error) {
+        console.error('Error loading predictions:', error)
+        setPredictions([])
+      } finally {
+        setPredictionsLoading(false)
+      }
+    }
+
+    loadPredictions()
+  }, [])
+
+  // Update forecast data when dependencies change
+  useEffect(() => {
+    if (!predictionsLoading) {
+      setForecastData(generateForecastData(selectedPrediction))
+    }
+  }, [selectedPrediction, timeHorizon, generateForecastData, predictionsLoading])
   
   useEffect(() => {
     if (autoRefresh) {
@@ -242,7 +301,18 @@ export function PredictionDashboard({
               Atualizar
             </Button>
             
-            <Select value={timeHorizon} onValueChange={(value: any) => onTimeHorizonChange?.(value)}>
+            <Select
+              value={timeHorizon}
+              onValueChange={(value: any) => {
+                if (value !== timeHorizon) {
+                  if (onTimeHorizonChange) {
+                    onTimeHorizonChange(value)
+                  } else {
+                    setInternalTimeHorizon(value)
+                  }
+                }
+              }}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>

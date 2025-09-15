@@ -1,14 +1,21 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { 
-  BarChart3, TrendingUp, Target, Calculator, 
-  Calendar, Building2, Zap, Crown
+import {
+  BarChart3, TrendingUp, Target, Calculator,
+  Calendar, Building2, Zap, Crown, RefreshCw
 } from 'lucide-react'
 import { PeriodComparison } from '@/components/analytics/PeriodComparison'
 import { StoreBenchmarks } from '@/components/analytics/StoreBenchmarks'
+import {
+  fetchPeriodComparisons,
+  fetchBenchmarks,
+  fetchCustomKPIs,
+  type Benchmark,
+  type PeriodComparison as PeriodComparisonData
+} from '@/lib/api/supabase-analytics'
 
 // Temporary inline components for Docker build
 const Card = ({ children, className = "", ...props }: any) => (
@@ -47,7 +54,7 @@ const Badge = ({ children, variant = "default", className = "" }: any) => (
   </div>
 )
 
-const CustomKPIBuilder = () => (
+const CustomKPIBuilder = ({ kpis, loading, onRefresh }: any) => (
   <div className="p-4 border rounded-lg">
     <h3 className="text-lg font-semibold mb-4">Constructor de KPIs Customizados</h3>
     <div className="space-y-4">
@@ -94,11 +101,75 @@ const CustomKPIBuilder = () => (
 
 export default function ComparisonsPage() {
   const [activeTab, setActiveTab] = useState('periods')
+  const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({
+    growthRate: 0,
+    benchmarkScore: 0,
+    ranking: 'Top 15%',
+    activeKPIs: 0
+  })
+  const [periodData, setPeriodData] = useState<{ current: PeriodComparisonData; previous?: PeriodComparisonData } | null>(null)
+  const [benchmarkData, setBenchmarkData] = useState<Benchmark[]>([])
+  const [customKPIs, setCustomKPIs] = useState<any[]>([])
 
   const pageVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   }
+
+  // Função para carregar dados
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      // Calcular datas para comparação (últimos 7 dias vs 7 dias anteriores)
+      const now = new Date()
+      const endDate = now.toISOString()
+      const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const compareEndDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const compareStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
+
+      // Buscar dados em paralelo
+      const [periods, benchmarks, kpis] = await Promise.all([
+        fetchPeriodComparisons(startDate, endDate, compareStartDate, compareEndDate),
+        fetchBenchmarks(),
+        fetchCustomKPIs()
+      ])
+
+      setPeriodData(periods)
+      setBenchmarkData(benchmarks)
+      setCustomKPIs(kpis)
+
+      // Calcular estatísticas
+      const growthRate = periods.current.growth_rate || 0
+      const benchmarkScore = benchmarks.length > 0
+        ? benchmarks.reduce((sum, b) => sum + b.percentile, 0) / benchmarks.length
+        : 0
+      const ranking = benchmarkScore > 80 ? 'Top 10%' :
+                     benchmarkScore > 60 ? 'Top 25%' :
+                     benchmarkScore > 40 ? 'Top 50%' : 'Em desenvolvimento'
+
+      setStats({
+        growthRate,
+        benchmarkScore,
+        ranking,
+        activeKPIs: kpis.length
+      })
+    } catch (error) {
+      console.error('Error loading comparison data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    loadData()
+
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(loadData, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const tabsData = [
     {
@@ -152,7 +223,13 @@ export default function ComparisonsPage() {
               <TrendingUp className="w-5 h-5 text-green-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Crescimento Geral</p>
-                <p className="text-lg font-semibold text-green-600">+12.4%</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {loading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    `${stats.growthRate > 0 ? '+' : ''}${stats.growthRate.toFixed(1)}%`
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -162,7 +239,13 @@ export default function ComparisonsPage() {
               <Target className="w-5 h-5 text-blue-500" />
               <div>
                 <p className="text-sm text-muted-foreground">vs. Benchmarks</p>
-                <p className="text-lg font-semibold text-blue-600">+8.7%</p>
+                <p className="text-lg font-semibold text-blue-600">
+                  {loading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    `${stats.benchmarkScore.toFixed(0)}%`
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -172,7 +255,13 @@ export default function ComparisonsPage() {
               <Crown className="w-5 h-5 text-yellow-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Ranking</p>
-                <p className="text-lg font-semibold text-yellow-600">Top 15%</p>
+                <p className="text-lg font-semibold text-yellow-600">
+                  {loading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    stats.ranking
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -182,7 +271,13 @@ export default function ComparisonsPage() {
               <Zap className="w-5 h-5 text-purple-500" />
               <div>
                 <p className="text-sm text-muted-foreground">KPIs Ativos</p>
-                <p className="text-lg font-semibold text-purple-600">12</p>
+                <p className="text-lg font-semibold text-purple-600">
+                  {loading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    stats.activeKPIs
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -232,7 +327,15 @@ export default function ComparisonsPage() {
                 </Card>
 
                 {/* Component */}
-                <Component />
+                {tab.id === 'periods' && periodData ? (
+                  <Component data={periodData} loading={loading} />
+                ) : tab.id === 'benchmarks' ? (
+                  <Component data={benchmarkData} loading={loading} />
+                ) : tab.id === 'custom' ? (
+                  <Component kpis={customKPIs} loading={loading} onRefresh={loadData} />
+                ) : (
+                  <Component />
+                )}
               </motion.div>
             </TabsContent>
           )
@@ -243,17 +346,26 @@ export default function ComparisonsPage() {
       <Card className="p-4 bg-muted/30">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-4">
-            <span>Dados atualizados em tempo real</span>
+            <span>Dados atualizados em tempo real via Supabase</span>
             <Badge variant="outline" className="gap-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               Online
             </Badge>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            <span>Sprint 10: Comparações e Benchmarks</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadData}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
             <Badge variant="default">
-              Concluído
+              Integrado com Supabase
             </Badge>
           </div>
         </div>

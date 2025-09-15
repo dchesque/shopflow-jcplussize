@@ -91,7 +91,7 @@ export function FlowVisualization() {
                 <Users className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-800">Total Visitantes</span>
               </div>
-              <p className="text-xl font-bold text-blue-900">{data.period_stats.total_visitors.toLocaleString()}</p>
+              <p className="text-xl font-bold text-blue-900">{(data.period_stats.total_visitors || 0).toLocaleString()}</p>
             </div>
 
             <div className="bg-green-50 p-3 rounded-lg">
@@ -99,7 +99,7 @@ export function FlowVisualization() {
                 <TrendingUp className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">Rotas Únicas</span>
               </div>
-              <p className="text-xl font-bold text-green-900">{data.period_stats.unique_paths}</p>
+              <p className="text-xl font-bold text-green-900">{data.period_stats.unique_paths || 0}</p>
             </div>
 
             <div className="bg-orange-50 p-3 rounded-lg">
@@ -107,7 +107,7 @@ export function FlowVisualization() {
                 <Clock className="w-4 h-4 text-orange-600" />
                 <span className="text-sm font-medium text-orange-800">Tempo Médio</span>
               </div>
-              <p className="text-xl font-bold text-orange-900">{data.period_stats.avg_visit_duration}min</p>
+              <p className="text-xl font-bold text-orange-900">{data.period_stats.avg_visit_duration || '0.0'}min</p>
             </div>
 
             <div className="bg-purple-50 p-3 rounded-lg">
@@ -115,7 +115,7 @@ export function FlowVisualization() {
                 <MapPin className="w-4 h-4 text-purple-600" />
                 <span className="text-sm font-medium text-purple-800">Hora Pico</span>
               </div>
-              <p className="text-xl font-bold text-purple-900">{data.period_stats.busiest_hour}</p>
+              <p className="text-xl font-bold text-purple-900">{data.period_stats.busiest_hour || 'Aguardando dados'}</p>
             </div>
           </div>
 

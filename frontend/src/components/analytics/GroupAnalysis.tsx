@@ -102,7 +102,7 @@ export function GroupAnalysis() {
               Distribuição por Tamanho de Grupo
             </h4>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {data.group_size_distribution.map((group, index) => (
+              {(data.group_size_distribution || []).map((group, index) => (
                 <div key={index} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-lg font-bold text-blue-900">
@@ -138,7 +138,7 @@ export function GroupAnalysis() {
               Padrões Comportamentais Identificados
             </h4>
             <div className="space-y-3">
-              {data.group_behavior_patterns.map((pattern, index) => (
+              {(data.group_behavior_patterns || []).map((pattern, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <div>
@@ -158,7 +158,7 @@ export function GroupAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">Características:</p>
                     <div className="flex flex-wrap gap-2">
-                      {pattern.characteristics.map((char, idx) => (
+                      {(pattern.characteristics || []).map((char, idx) => (
                         <Badge key={idx} variant="outline" className="text-xs">
                           {char}
                         </Badge>
@@ -177,7 +177,7 @@ export function GroupAnalysis() {
               Estratégias Recomendadas
             </h4>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {data.optimal_strategies.map((strategy, index) => (
+              {(data.optimal_strategies || []).map((strategy, index) => (
                 <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <div className="bg-green-500 text-white rounded-full p-1">
@@ -212,21 +212,27 @@ export function GroupAnalysis() {
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-1">Grupos:</p>
                     <div className="flex flex-wrap gap-2">
-                      {data.time_analysis.peak_group_hours.map((hour, idx) => (
+                      {(data.time_analysis?.peak_group_hours || []).map((hour, idx) => (
                         <Badge key={idx} variant="default" className="text-xs">
                           {hour}
                         </Badge>
                       ))}
+                      {(!data.time_analysis?.peak_group_hours || data.time_analysis.peak_group_hours.length === 0) && (
+                        <span className="text-sm text-gray-500">Sem dados disponíveis</span>
+                      )}
                     </div>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-1">Individuais:</p>
                     <div className="flex flex-wrap gap-2">
-                      {data.time_analysis.solo_shopper_hours.map((hour, idx) => (
+                      {(data.time_analysis?.solo_shopper_hours || []).map((hour, idx) => (
                         <Badge key={idx} variant="secondary" className="text-xs">
                           {hour}
                         </Badge>
                       ))}
+                      {(!data.time_analysis?.solo_shopper_hours || data.time_analysis.solo_shopper_hours.length === 0) && (
+                        <span className="text-sm text-gray-500">Sem dados disponíveis</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -243,13 +249,13 @@ export function GroupAnalysis() {
                     <span className="text-sm text-gray-600">Fins de Semana</span>
                     <div className="flex items-center gap-2">
                       <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${data.time_analysis.weekend_vs_weekday.weekend_group_ratio * 100}%` }}
+                          style={{ width: `${(data.time_analysis?.weekend_vs_weekday?.weekend_group_ratio || 0) * 100}%` }}
                         />
                       </div>
                       <span className="text-sm font-medium">
-                        {Math.round(data.time_analysis.weekend_vs_weekday.weekend_group_ratio * 100)}%
+                        {Math.round((data.time_analysis?.weekend_vs_weekday?.weekend_group_ratio || 0) * 100)}%
                       </span>
                     </div>
                   </div>
@@ -257,13 +263,13 @@ export function GroupAnalysis() {
                     <span className="text-sm text-gray-600">Dias da Semana</span>
                     <div className="flex items-center gap-2">
                       <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${data.time_analysis.weekend_vs_weekday.weekday_group_ratio * 100}%` }}
+                          style={{ width: `${(data.time_analysis?.weekend_vs_weekday?.weekday_group_ratio || 0) * 100}%` }}
                         />
                       </div>
                       <span className="text-sm font-medium">
-                        {Math.round(data.time_analysis.weekend_vs_weekday.weekday_group_ratio * 100)}%
+                        {Math.round((data.time_analysis?.weekend_vs_weekday?.weekday_group_ratio || 0) * 100)}%
                       </span>
                     </div>
                   </div>
