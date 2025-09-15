@@ -3,6 +3,7 @@ import './globals.css'
 import { cn } from '@/lib/utils'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { DetectionProvider } from '@/contexts/DetectionContext'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -127,13 +128,15 @@ export default function RootLayout({
         <div className="relative">
           <QueryProvider>
             <ThemeProvider>
-              {children}
-              <Toaster
-                position="top-right"
-                theme="dark"
-                richColors
-                closeButton
-              />
+              <DetectionProvider>
+                {children}
+                <Toaster
+                  position="top-right"
+                  theme="dark"
+                  richColors
+                  closeButton
+                />
+              </DetectionProvider>
             </ThemeProvider>
           </QueryProvider>
           

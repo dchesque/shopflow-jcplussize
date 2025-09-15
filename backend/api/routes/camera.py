@@ -86,20 +86,25 @@ async def process_camera_frame(
         # Processa com YOLO11
         detector_instance = await get_detector()
         detections = await detector_instance.detect_persons(img)
-        
+
+        # Adiciona IDs únicos às detecções para o SmartAnalyticsEngine
+        for i, detection in enumerate(detections):
+            detection['id'] = i
+
         # Processa com Smart Analytics
         analytics_instance = await get_analytics_engine()
-        smart_detections = await analytics_instance.process_frame_detections(detections, img)
-        
+        smart_metrics = await analytics_instance.process_frame(img, detections, timestamp)
+
         # Extrai métricas básicas
         people_count = len(detections)
-        employees_detected = sum(1 for d in smart_detections if d.is_employee)
-        customers_count = people_count - employees_detected
-        
-        # Análise de grupos
+        employees_detected = smart_metrics.employees
+        customers_count = smart_metrics.customers
+
+        # Análise de grupos (usando dados dos smart_metrics)
         groups_detected = []
-        if len(smart_detections) > 1:
-            groups_detected = await analytics_instance.group_detector.detect_groups(smart_detections)
+        # Usar dados de grupos do smart_metrics se disponível
+        if hasattr(smart_metrics, 'group_shopping_rate') and smart_metrics.group_shopping_rate > 0:
+            groups_detected = [{"rate": smart_metrics.group_shopping_rate}]
         
         # Salva no Supabase usando o manager global
         from core.database import SupabaseManager
@@ -121,9 +126,10 @@ async def process_camera_frame(
                 frame_height=img.shape[0],
                 metadata={
                     'smart_analytics': {
-                        'face_attempts': sum(1 for d in smart_detections if d.face_data is not None),
-                        'behavior_active': any(d.behavior_signature for d in smart_detections),
-                        'groups': [g.group_type.value for g in groups_detected] if groups_detected else []
+                        'confidence_score': smart_metrics.confidence_score,
+                        'anomalies_detected': len(smart_metrics.anomalies_detected),
+                        'recommendations': len(smart_metrics.recommendations),
+                        'groups': [g.get("rate", 0) for g in groups_detected] if groups_detected else []
                     }
                 }
             )
@@ -146,10 +152,10 @@ async def process_camera_frame(
             'employees_detected': employees_detected,
             'groups_detected': len(groups_detected),
             'smart_analytics': {
-                'face_recognition_attempts': sum(1 for d in smart_detections if d.face_data is not None),
-                'behavior_analysis_active': any(d.behavior_signature for d in smart_detections),
-                'temporal_analysis_results': [d.purchase_probability for d in smart_detections if d.purchase_probability > 0],
-                'group_types': [g.group_type.value for g in groups_detected]
+                'confidence_score': smart_metrics.confidence_score,
+                'anomalies_count': len(smart_metrics.anomalies_detected),
+                'recommendations_count': len(smart_metrics.recommendations),
+                'group_types': [g.get("rate", 0) for g in groups_detected] if groups_detected else []
             },
             'processing_time_ms': round(processing_time, 2),
             'frame_resolution': f"{img.shape[1]}x{img.shape[0]}"
@@ -489,3 +495,98 @@ async def get_camera_snapshot(camera_id: str):
     except Exception as e:
         logger.error(f"❌ Erro ao gerar snapshot: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{camera_id}/detections")
+async def get_camera_detections(camera_id: str):
+    """🎯 Obter detecções em tempo real da câmera processando frame atual"""
+    try:
+        import cv2
+        import numpy as np
+        import base64
+        from datetime import datetime
+
+        # Buscar câmera no banco
+        supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await supabase.initialize()
+
+        camera = await supabase.get_camera_by_id(camera_id)
+        if not camera:
+            raise HTTPException(status_code=404, detail="Câmera não encontrada")
+
+        rtsp_url = camera.get('rtsp_url')
+        if not rtsp_url:
+            return {
+                'success': False,
+                'camera_id': camera_id,
+                'detections': [],
+                'timestamp': datetime.now().isoformat(),
+                'error': 'URL RTSP não configurada'
+            }
+
+        # Capturar frame atual da câmera
+        cap = cv2.VideoCapture(rtsp_url)
+        if not cap.isOpened():
+            return {
+                'success': False,
+                'camera_id': camera_id,
+                'detections': [],
+                'timestamp': datetime.now().isoformat(),
+                'error': 'Não foi possível conectar à câmera'
+            }
+
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret or frame is None:
+            return {
+                'success': False,
+                'camera_id': camera_id,
+                'detections': [],
+                'timestamp': datetime.now().isoformat(),
+                'error': 'Não foi possível capturar frame'
+            }
+
+        # Processar frame com YOLO
+        detector_instance = await get_detector()
+        detections = await detector_instance.detect_persons(frame)
+
+        # Converter detecções para formato frontend
+        real_detections = []
+        for i, detection in enumerate(detections):
+            # Extrair coordenadas da bbox (formato: [x1, y1, x2, y2])
+            x1, y1, x2, y2 = detection.get('bbox', [0, 0, 100, 100])
+
+            real_detections.append({
+                'id': f"person_{i}_{int(datetime.now().timestamp())}",
+                'class': 'person',
+                'confidence': detection.get('confidence', 0.8),
+                'bbox': {
+                    'x': int(x1),
+                    'y': int(y1),
+                    'width': int(x2 - x1),
+                    'height': int(y2 - y1)
+                },
+                'timestamp': datetime.now().isoformat()
+            })
+
+        logger.info(f"🎯 Processamento YOLO: {len(real_detections)} pessoas detectadas")
+
+        return {
+            'success': True,
+            'camera_id': camera_id,
+            'timestamp': datetime.now().isoformat(),
+            'detections': real_detections,
+            'people_count': len(real_detections),
+            'frame_resolution': f"{frame.shape[1]}x{frame.shape[0]}",
+            'source': 'real_time_yolo'
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao obter detecções em tempo real: {e}")
+        return {
+            'success': False,
+            'camera_id': camera_id,
+            'detections': [],
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }

@@ -265,7 +265,12 @@
       "Bash(git ls-tree:*)",
       "Bash(dir:*)",
       "Bash(venv\\Scripts\\activate.bat:*)",
-      "Bash(venv/Scripts/pip.exe install:*)"
+      "Bash(venv/Scripts/pip.exe install:*)",
+      "Read(//d/Users/OneDrive/Desktop/**)",
+      "Bash(BRIDGE_API_KEY=6AA92A41E65ED7FF8C662AB3C947F python main.py)",
+      "Read(//d/Users/OneDrive/Imagens/Screenshots/**)",
+      "Bash(tasklist)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

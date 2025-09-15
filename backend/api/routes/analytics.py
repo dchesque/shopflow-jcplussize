@@ -430,7 +430,7 @@ async def get_analytics_health(
 @router.get("/realtime-data", response_model=Dict[str, Any])
 async def get_realtime_analytics():
     """
-    Obter dados de analytics em tempo real
+    Obter dados de analytics em tempo real do Supabase
     
     Retorna:
         - Métricas em tempo real
@@ -438,71 +438,12 @@ async def get_realtime_analytics():
         - Alertas ativos
     """
     try:
-        # Obter dados do banco
+        # Obter dados reais do banco
         db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
         await db.initialize()
         
-        # Métricas atuais
-        current_stats = await db.get_current_stats()
-        
-        # Eventos recentes
-        recent_events = await db.get_recent_events(limit=10)
-        
-        # Simular dados em tempo real (em produção, viria do sistema de AI)
-        realtime_data = {
-            "current_metrics": {
-                "people_online": current_stats.get("people_count", 127),
-                "avg_time_spent": "8.5",
-                "conversion_rate": 23.4,
-                "active_alerts": 3
-            },
-            "hourly_trend": [
-                {"hour": "08:00", "count": 45},
-                {"hour": "09:00", "count": 67},
-                {"hour": "10:00", "count": 89},
-                {"hour": "11:00", "count": 112},
-                {"hour": "12:00", "count": 127}
-            ],
-            "recent_activities": [
-                {
-                    "id": 1,
-                    "type": "spike_detected",
-                    "message": "Novo pico de visitantes detectado",
-                    "timestamp": (datetime.now() - timedelta(minutes=2)).isoformat(),
-                    "severity": "info"
-                },
-                {
-                    "id": 2,
-                    "type": "camera_online",
-                    "message": "Câmera #3 voltou online",
-                    "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat(),
-                    "severity": "success"
-                },
-                {
-                    "id": 3,
-                    "type": "goal_achieved",
-                    "message": "Meta de conversão atingida",
-                    "timestamp": (datetime.now() - timedelta(minutes=12)).isoformat(),
-                    "severity": "success"
-                }
-            ],
-            "active_alerts": [
-                {
-                    "id": 1,
-                    "type": "critical",
-                    "title": "Alta densidade detectada",
-                    "message": "Zona de eletrônicos com alta concentração",
-                    "timestamp": (datetime.now() - timedelta(minutes=8)).isoformat()
-                },
-                {
-                    "id": 2,
-                    "type": "warning",
-                    "title": "Tempo de espera elevado",
-                    "message": "Fila no caixa #2 acima do normal",
-                    "timestamp": (datetime.now() - timedelta(minutes=15)).isoformat()
-                }
-            ]
-        }
+        # Usar método específico para dados em tempo real
+        realtime_data = await db.get_realtime_analytics_data()
         
         return {
             "status": "success",
@@ -522,7 +463,7 @@ async def get_flow_visualization(
     hours: int = Query(24, ge=1, le=168, description="Período em horas")
 ):
     """
-    Obter dados para visualização de fluxo de clientes
+    Obter dados reais para visualização de fluxo de clientes do Supabase
     
     Args:
         hours: Período em horas para análise
@@ -533,64 +474,12 @@ async def get_flow_visualization(
         - Pontos de interesse
     """
     try:
-        # Simular dados de fluxo (em produção, viria do sistema de tracking)
-        flow_data = {
-            "heatmap_zones": [
-                {"zone": "entrada", "x": 10, "y": 10, "intensity": 0.9, "visits": 245},
-                {"zone": "eletrônicos", "x": 30, "y": 20, "intensity": 0.8, "visits": 189},
-                {"zone": "roupas", "x": 50, "y": 30, "intensity": 0.6, "visits": 134},
-                {"zone": "alimentação", "x": 70, "y": 40, "intensity": 0.7, "visits": 156},
-                {"zone": "caixas", "x": 90, "y": 50, "intensity": 0.5, "visits": 98},
-                {"zone": "saída", "x": 90, "y": 10, "intensity": 0.4, "visits": 78}
-            ],
-            "main_paths": [
-                {
-                    "path_id": 1,
-                    "name": "Entrada → Eletrônicos → Caixas",
-                    "frequency": 45,
-                    "avg_time": "12.5",
-                    "conversion_rate": 0.34,
-                    "coordinates": [
-                        {"x": 10, "y": 10},
-                        {"x": 30, "y": 20},
-                        {"x": 90, "y": 50}
-                    ]
-                },
-                {
-                    "path_id": 2,
-                    "name": "Entrada → Roupas → Alimentação → Caixas",
-                    "frequency": 32,
-                    "avg_time": "18.3",
-                    "conversion_rate": 0.28,
-                    "coordinates": [
-                        {"x": 10, "y": 10},
-                        {"x": 50, "y": 30},
-                        {"x": 70, "y": 40},
-                        {"x": 90, "y": 50}
-                    ]
-                }
-            ],
-            "bottlenecks": [
-                {
-                    "zone": "caixas",
-                    "severity": "high",
-                    "avg_wait_time": "4.2",
-                    "recommendation": "Abrir caixa adicional"
-                },
-                {
-                    "zone": "provadores",
-                    "severity": "medium",
-                    "avg_wait_time": "2.8",
-                    "recommendation": "Otimizar gestão de fila"
-                }
-            ],
-            "period_stats": {
-                "total_visitors": 1247,
-                "unique_paths": 15,
-                "avg_visit_duration": "15.7",
-                "busiest_hour": "14:00-15:00"
-            }
-        }
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+        
+        # Usar método específico para dados de flow
+        flow_data = await db.get_flow_visualization_data(hours)
         
         return {
             "status": "success",
@@ -611,7 +500,7 @@ async def get_group_analysis(
     days: int = Query(7, ge=1, le=30, description="Período em dias")
 ):
     """
-    Obter análise de grupos de clientes
+    Obter análise real de grupos de clientes do Supabase
     
     Args:
         days: Período em dias para análise
@@ -622,70 +511,12 @@ async def get_group_analysis(
         - Padrões de compra em grupo
     """
     try:
-        # Simular dados de análise de grupos
-        group_data = {
-            "group_size_distribution": [
-                {"size": 1, "count": 456, "percentage": 52.3, "avg_spending": 89.50},
-                {"size": 2, "count": 298, "percentage": 34.1, "avg_spending": 156.30},
-                {"size": 3, "count": 89, "percentage": 10.2, "avg_spending": 234.70},
-                {"size": "4+", "count": 29, "percentage": 3.4, "avg_spending": 312.90}
-            ],
-            "group_behavior_patterns": [
-                {
-                    "pattern": "family_shopping",
-                    "description": "Famílias com crianças",
-                    "frequency": 23.5,
-                    "characteristics": [
-                        "Maior tempo na seção infantil",
-                        "Compras planejadas",
-                        "Alto valor de ticket"
-                    ],
-                    "conversion_rate": 0.78
-                },
-                {
-                    "pattern": "couple_browsing",
-                    "description": "Casais explorando",
-                    "frequency": 18.7,
-                    "characteristics": [
-                        "Navegação não-linear",
-                        "Tempo médio elevado",
-                        "Compras por impulso"
-                    ],
-                    "conversion_rate": 0.45
-                },
-                {
-                    "pattern": "friends_shopping",
-                    "description": "Grupos de amigos",
-                    "frequency": 12.3,
-                    "characteristics": [
-                        "Foco em moda/eletrônicos",
-                        "Decisões compartilhadas",
-                        "Compras em conjunto"
-                    ],
-                    "conversion_rate": 0.62
-                }
-            ],
-            "optimal_strategies": [
-                {
-                    "group_type": "families",
-                    "recommendation": "Criar áreas de entretenimento infantil próximas às seções de interesse dos pais",
-                    "impact": "Aumenta tempo de permanência em 23%"
-                },
-                {
-                    "group_type": "couples",
-                    "recommendation": "Implementar navegação assistida e ofertas casadas",
-                    "impact": "Melhora conversão em 15%"
-                }
-            ],
-            "time_analysis": {
-                "peak_group_hours": ["14:00-16:00", "19:00-21:00"],
-                "solo_shopper_hours": ["10:00-12:00", "16:00-18:00"],
-                "weekend_vs_weekday": {
-                    "weekend_group_ratio": 0.68,
-                    "weekday_group_ratio": 0.42
-                }
-            }
-        }
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+        
+        # Usar método específico para análise de grupos
+        group_data = await db.get_group_analysis_data(days)
         
         return {
             "status": "success",
@@ -707,7 +538,7 @@ async def get_period_comparison(
     comparison_period: str = Query(..., description="Período de comparação (YYYY-MM-DD to YYYY-MM-DD)")
 ):
     """
-    Comparar métricas entre dois períodos
+    Comparar métricas reais entre dois períodos do Supabase
     
     Args:
         current_period: Período atual no formato "YYYY-MM-DD to YYYY-MM-DD"
@@ -719,57 +550,12 @@ async def get_period_comparison(
         - Insights sobre mudanças
     """
     try:
-        # Simular dados de comparação (em produção, viria do banco)
-        comparison_data = {
-            "current_period": {
-                "visitors": 1547,
-                "sales": 234,
-                "revenue": 45678.90,
-                "conversion_rate": 15.1,
-                "avg_time_spent": "16.3",
-                "peak_hour": "15:00"
-            },
-            "comparison_period": {
-                "visitors": 1398,
-                "sales": 198,
-                "revenue": 38923.45,
-                "conversion_rate": 14.2,
-                "avg_time_spent": "14.8",
-                "peak_hour": "14:00"
-            },
-            "variations": {
-                "visitors": {"absolute": 149, "percentage": 10.7, "trend": "up"},
-                "sales": {"absolute": 36, "percentage": 18.2, "trend": "up"},
-                "revenue": {"absolute": 6755.45, "percentage": 17.4, "trend": "up"},
-                "conversion_rate": {"absolute": 0.9, "percentage": 6.3, "trend": "up"},
-                "avg_time_spent": {"absolute": 1.5, "percentage": 10.1, "trend": "up"}
-            },
-            "insights": [
-                {
-                    "type": "positive",
-                    "title": "Crescimento significativo",
-                    "description": "Aumento de 17.4% na receita indica melhoria na estratégia de vendas",
-                    "impact": "high"
-                },
-                {
-                    "type": "neutral",
-                    "title": "Mudança no horário de pico",
-                    "description": "Pico moveu de 14:00 para 15:00, considerar ajuste de pessoal",
-                    "impact": "medium"
-                },
-                {
-                    "type": "positive",
-                    "title": "Maior engajamento",
-                    "description": "Tempo médio de permanência aumentou 10.1%",
-                    "impact": "medium"
-                }
-            ],
-            "statistical_significance": {
-                "confidence_level": 95,
-                "is_significant": True,
-                "p_value": 0.032
-            }
-        }
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+        
+        # Usar método específico para comparação de períodos
+        comparison_data = await db.get_period_comparison_data(current_period, comparison_period)
         
         return {
             "status": "success",
@@ -794,7 +580,7 @@ async def get_industry_benchmarks(
     store_size: str = Query("medium", description="Tamanho da loja (small/medium/large)")
 ):
     """
-    Obter benchmarks da indústria para comparação
+    Obter benchmarks reais da indústria para comparação
     
     Args:
         industry: Setor da indústria
@@ -806,61 +592,12 @@ async def get_industry_benchmarks(
         - Oportunidades de melhoria
     """
     try:
-        # Simular dados de benchmark (em produção, viria de base de dados da indústria)
-        benchmark_data = {
-            "industry_averages": {
-                "conversion_rate": {"value": 12.8, "percentile": 50},
-                "avg_transaction_value": {"value": 125.40, "percentile": 50},
-                "customer_retention": {"value": 0.42, "percentile": 50},
-                "foot_traffic_conversion": {"value": 0.23, "percentile": 50},
-                "avg_visit_duration": {"value": "13.5", "percentile": 50}
-            },
-            "store_performance": {
-                "conversion_rate": {"value": 15.1, "percentile": 78, "status": "above_average"},
-                "avg_transaction_value": {"value": 156.30, "percentile": 85, "status": "excellent"},
-                "customer_retention": {"value": 0.38, "percentile": 35, "status": "below_average"},
-                "foot_traffic_conversion": {"value": 0.28, "percentile": 72, "status": "above_average"},
-                "avg_visit_duration": {"value": "16.3", "percentile": 82, "status": "excellent"}
-            },
-            "top_performers": {
-                "conversion_rate": {"value": 18.5, "percentile": 95},
-                "avg_transaction_value": {"value": 189.20, "percentile": 95},
-                "customer_retention": {"value": 0.58, "percentile": 95},
-                "foot_traffic_conversion": {"value": 0.35, "percentile": 95},
-                "avg_visit_duration": {"value": "21.7", "percentile": 95}
-            },
-            "improvement_opportunities": [
-                {
-                    "metric": "customer_retention",
-                    "current_percentile": 35,
-                    "target_percentile": 50,
-                    "potential_impact": "Increase repeat customers by 8-12%",
-                    "recommended_actions": [
-                        "Implementar programa de fidelidade",
-                        "Melhorar follow-up pós-venda",
-                        "Personalizar comunicação"
-                    ]
-                },
-                {
-                    "metric": "conversion_rate",
-                    "current_percentile": 78,
-                    "target_percentile": 90,
-                    "potential_impact": "Increase sales by 12-15%",
-                    "recommended_actions": [
-                        "Otimizar layout da loja",
-                        "Treinar equipe em técnicas de vendas",
-                        "Implementar ofertas direcionadas"
-                    ]
-                }
-            ],
-            "market_context": {
-                "industry": industry,
-                "store_size": store_size,
-                "region": "Brasil - Sudeste",
-                "sample_size": 1247,
-                "data_freshness": "Últimos 90 dias"
-            }
-        }
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+        
+        # Usar método específico para benchmarks
+        benchmark_data = await db.get_industry_benchmarks_data(industry, store_size)
         
         return {
             "status": "success",

@@ -55,7 +55,7 @@ export interface CameraEvent {
   metadata?: Record<string, any>
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
 class CameraAPI {
   private baseUrl = `${API_BASE}/api/camera`

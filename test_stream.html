@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Stream Camera</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: Arial;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #00ff00;
+        }
+        .error {
+            border: 2px solid #ff0000;
+        }
+        .info {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste de Stream de Câmera</h1>
+
+        <div class="test">
+            <h2>1. Stream Direto com camera1</h2>
+            <div class="info">URL: http://localhost:8888/api/stream/camera1</div>
+            <img src="http://localhost:8888/api/stream/camera1"
+                 alt="Stream camera1"
+                 onload="console.log('camera1 loaded')"
+                 onerror="console.error('camera1 error'); this.classList.add('error')">
+        </div>
+
+        <div class="test">
+            <h2>2. Stream com UUID do Backend</h2>
+            <div class="info">URL: http://localhost:8888/api/stream/8c177623-5f87-48a5-8841-4be4868ff995</div>
+            <img src="http://localhost:8888/api/stream/8c177623-5f87-48a5-8841-4be4868ff995"
+                 alt="Stream UUID"
+                 onload="console.log('UUID stream loaded')"
+                 onerror="console.error('UUID stream error'); this.classList.add('error')">
+        </div>
+
+        <div class="test">
+            <h2>3. Snapshot com camera1</h2>
+            <div class="info">URL: http://localhost:8888/api/snapshot/camera1</div>
+            <img src="http://localhost:8888/api/snapshot/camera1"
+                 alt="Snapshot camera1"
+                 onload="console.log('Snapshot loaded')"
+                 onerror="console.error('Snapshot error'); this.classList.add('error')">
+        </div>
+
+        <script>
+            // Teste fetch direto
+            fetch('http://localhost:8001/api/camera/')
+                .then(r => r.json())
+                .then(data => {
+                    console.log('Cameras from backend:', data);
+                    document.body.insertAdjacentHTML('beforeend',
+                        `<div class="info">Backend cameras: ${JSON.stringify(data.cameras, null, 2)}</div>`
+                    );
+                });
+
+            // Log de status
+            setTimeout(() => {
+                const images = document.querySelectorAll('img');
+                images.forEach((img, i) => {
+                    console.log(`Image ${i}: ${img.complete ? 'Loaded' : 'Not loaded'}, Natural size: ${img.naturalWidth}x${img.naturalHeight}`);
+                });
+            }, 3000);
+        </script>
+    </div>
+</body>
+</html>

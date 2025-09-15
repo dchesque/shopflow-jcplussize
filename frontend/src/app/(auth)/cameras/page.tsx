@@ -20,11 +20,13 @@ import { Button } from '@/components/ui/button'
 import { Camera as CameraType } from '@/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useDetection } from '@/contexts/DetectionContext'
 
 
 export default function CamerasPage() {
   const { cameras, isLoading, refetch, captureSnapshot, processFrame } = useCameras()
   const { health, isHealthy } = useCameraHealth()
+  const { getTotalPeople, getCustomersCount, getEmployeesCount } = useDetection()
   const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
   const [showDetections, setShowDetections] = useState(true)
   const [fullscreenCamera, setFullscreenCamera] = useState<string | null>(null)
@@ -281,7 +283,7 @@ export default function CamerasPage() {
               <Wifi className="w-4 h-4 text-green-400" />
             </div>
             <p className="text-2xl font-bold text-white">
-              {cameras.reduce((sum, cam) => sum + (cam.peopleCount || 0), 0)}
+              {getTotalPeople()}
             </p>
           </div>
 
@@ -291,7 +293,7 @@ export default function CamerasPage() {
               <Wifi className="w-4 h-4 text-blue-400" />
             </div>
             <p className="text-2xl font-bold text-blue-400">
-              {cameras.reduce((sum, cam) => sum + (cam.customersCount || 0), 0)}
+              {getCustomersCount()}
             </p>
           </div>
 
@@ -301,7 +303,7 @@ export default function CamerasPage() {
               <Wifi className="w-4 h-4 text-purple-400" />
             </div>
             <p className="text-2xl font-bold text-purple-400">
-              {cameras.reduce((sum, cam) => sum + (cam.employeesCount || 0), 0)}
+              {getEmployeesCount()}
             </p>
           </div>
 

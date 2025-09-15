@@ -6,6 +6,19 @@ import { Camera, WifiOff, RefreshCw } from 'lucide-react'
 import { Camera as CameraType } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { useDetection } from '@/contexts/DetectionContext'
+
+interface Detection {
+  id: string
+  class: string
+  confidence: number
+  bbox: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+}
 
 interface StreamDisplayProps {
   camera: CameraType
@@ -15,26 +28,34 @@ interface StreamDisplayProps {
   onStreamLoad?: () => void
 }
 
-export function StreamDisplay({ 
-  camera, 
+export function StreamDisplay({
+  camera,
   isPlaying = true,
   className,
   onError,
-  onStreamLoad 
+  onStreamLoad
 }: StreamDisplayProps) {
   const [streamState, setStreamState] = useState<'loading' | 'playing' | 'error' | 'offline'>('loading')
   const [retryCount, setRetryCount] = useState(0)
   const [lastSnapshot, setLastSnapshot] = useState<string | null>(null)
+  const [detections, setDetections] = useState<Detection[]>([])
+  const [showDetections, setShowDetections] = useState(true)
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { updateDetections } = useDetection()
 
   const MAX_RETRY_ATTEMPTS = 3
   const RETRY_DELAY = 2000
 
-  // Simulação de stream MJPEG
-  const streamUrl = camera.rtsp_url 
-    ? `${camera.rtsp_url.replace('rtsp://', 'http://')}/mjpeg`
+  // Stream direto do bridge (desenvolvimento local)
+  const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'http://localhost:8888'
+  const streamUrl = camera.id
+    ? `${BRIDGE_URL}/api/stream/${camera.id}`
     : null
+
+  console.log('Camera ID:', camera.id)
+  console.log('Stream URL:', streamUrl)
+  console.log('Camera Status:', camera.status)
 
   const handleImageLoad = () => {
     setStreamState('playing')
@@ -83,6 +104,63 @@ export function StreamDisplay({
     }
   }
 
+  // Fetch real-time YOLO detections from backend
+  const fetchDetections = async () => {
+    try {
+      // Call the real YOLO detection endpoint
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001'
+      const response = await fetch(`${backendUrl}/api/camera/${camera.id}/detections`)
+
+      if (!response.ok) {
+        console.log(`Backend detection API returned ${response.status}`)
+        setDetections([])
+        updateDetections(camera.id, [])
+        return
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        console.log('Backend detection failed:', data.error)
+        setDetections([])
+        updateDetections(camera.id, [])
+        return
+      }
+
+      const realDetections = data.detections || []
+
+      console.log(`🎯 Real YOLO detections: ${realDetections.length} pessoas detectadas`)
+      console.log('Detection data:', realDetections)
+
+      setDetections(realDetections)
+      updateDetections(camera.id, realDetections)
+
+    } catch (error) {
+      console.error('Error fetching real detections:', error)
+
+      // Fallback to bridge status check for basic connectivity
+      try {
+        const bridgeResponse = await fetch('http://localhost:8888/api/status')
+        if (bridgeResponse.ok) {
+          const bridgeData = await bridgeResponse.json()
+          const bridgeCamera = bridgeData.cameras?.find((cam: any) => cam.camera_id === 'camera1')
+          const isActive = bridgeCamera?.connection_status === 'connected'
+
+          if (!isActive) {
+            console.log('Bridge not active - clearing detections')
+            setDetections([])
+            updateDetections(camera.id, [])
+          }
+        }
+      } catch (bridgeError) {
+        console.error('Bridge status check failed:', bridgeError)
+      }
+
+      setDetections([])
+      updateDetections(camera.id, [])
+    }
+  }
+
   useEffect(() => {
     if (camera.status === 'offline') {
       setStreamState('offline')
@@ -97,28 +175,21 @@ export function StreamDisplay({
     }
   }, [camera.status, streamUrl, isPlaying])
 
+  // Fetch detections periodically for real-time updates
+  useEffect(() => {
+    if (camera.status === 'online') {
+      fetchDetections()
+      const interval = setInterval(fetchDetections, 1000) // Update every 1 second for real-time YOLO detection
+      return () => clearInterval(interval)
+    } else {
+      // Clear detections when camera is offline
+      setDetections([])
+      updateDetections(camera.id, [])
+    }
+  }, [camera.status, camera.id])
+
   const renderStreamContent = () => {
     switch (streamState) {
-      case 'loading':
-        return (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="w-12 h-12 text-blue-400 mx-auto mb-4"
-              >
-                <RefreshCw className="w-full h-full" />
-              </motion.div>
-              <p className="text-neutral-400 font-medium">
-                Conectando...
-              </p>
-              <p className="text-neutral-500 text-sm mt-1">
-                Tentativa {retryCount + 1} de {MAX_RETRY_ATTEMPTS + 1}
-              </p>
-            </div>
-          </div>
-        )
 
       case 'error':
         return (
@@ -159,19 +230,40 @@ export function StreamDisplay({
           </div>
         )
 
+      case 'loading':
       case 'playing':
         return (
           <>
             {streamUrl ? (
-              <img
-                ref={imgRef}
-                src={streamUrl}
-                alt={`Stream da câmera ${camera.name}`}
-                className="w-full h-full object-cover"
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                style={{ display: isPlaying ? 'block' : 'none' }}
-              />
+              <>
+                <img
+                  ref={imgRef}
+                  src={streamUrl}
+                  alt={`Stream da câmera ${camera.name}`}
+                  className="w-full h-full object-cover"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+                {streamState === 'loading' && (
+                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                    <div className="text-center">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-12 h-12 text-blue-400 mx-auto mb-4"
+                      >
+                        <RefreshCw className="w-full h-full" />
+                      </motion.div>
+                      <p className="text-neutral-400 font-medium">
+                        Conectando...
+                      </p>
+                      <p className="text-neutral-500 text-sm mt-1">
+                        Tentativa {retryCount + 1} de {MAX_RETRY_ATTEMPTS + 1}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               // Fallback para câmeras sem stream real - simulação
               <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center relative overflow-hidden">
@@ -233,7 +325,32 @@ export function StreamDisplay({
   return (
     <div className={cn("relative aspect-video bg-neutral-950 rounded-xl overflow-hidden", className)}>
       {renderStreamContent()}
-      
+
+      {/* Detection overlays */}
+      {streamState === 'playing' && showDetections && detections.length > 0 && (
+        <div className="absolute inset-0">
+          {detections.map((detection) => (
+            <motion.div
+              key={detection.id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute border-2 border-red-500 bg-red-500/10"
+              style={{
+                left: `${(detection.bbox.x / 1920) * 100}%`,
+                top: `${(detection.bbox.y / 1080) * 100}%`,
+                width: `${(detection.bbox.width / 1920) * 100}%`,
+                height: `${(detection.bbox.height / 1080) * 100}%`,
+              }}
+            >
+              {/* Detection label */}
+              <div className="absolute -top-6 left-0 px-2 py-1 bg-red-500 text-white text-xs rounded">
+                {detection.class} {Math.round(detection.confidence * 100)}%
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Hidden canvas for snapshot capture */}
       <canvas
         ref={canvasRef}
@@ -241,7 +358,7 @@ export function StreamDisplay({
         width={1920}
         height={1080}
       />
-      
+
       {/* Stream quality indicator */}
       {streamState === 'playing' && (
         <motion.div
@@ -263,6 +380,15 @@ export function StreamDisplay({
         <div className="absolute top-3 right-3 px-2 py-1 bg-neutral-800/80 backdrop-blur-sm rounded-full">
           <span className="text-neutral-300 text-xs">
             Latência: ~{Math.floor(Math.random() * 200 + 50)}ms
+          </span>
+        </div>
+      )}
+
+      {/* Detection count indicator */}
+      {streamState === 'playing' && detections.length > 0 && (
+        <div className="absolute bottom-3 left-3 px-2 py-1 bg-red-500/20 border border-red-500/30 rounded-full">
+          <span className="text-red-400 text-xs font-medium">
+            {detections.length} detecção{detections.length > 1 ? 'ões' : ''}
           </span>
         </div>
       )}

@@ -13,7 +13,6 @@ import json
 import threading
 import os
 from queue import Queue
-import configparser
 import logging
 from PIL import Image
 import io
@@ -26,6 +25,7 @@ import socket
 from threading import Lock
 from collections import defaultdict
 import psutil
+from dotenv import load_dotenv
 
 # Configuração de logging
 os.makedirs('logs', exist_ok=True)
@@ -40,25 +40,25 @@ logging.basicConfig(
 
 class CameraHandler:
     """Classe para gerenciar uma câmera individual"""
-    
-    def __init__(self, camera_id, config, api_url, api_key, bridge_id):
+
+    def __init__(self, camera_id, api_url, api_key, bridge_id):
         self.camera_id = camera_id
         self.camera_num = camera_id.replace('camera', '')
-        self.config = config
         self.api_url = api_url
         self.api_key = api_key
         self.bridge_id = bridge_id
-        
-        # Configurações da câmera
-        self.enabled = config.getboolean(camera_id, 'enabled', fallback=False)
-        self.rtsp_url = config.get(camera_id, 'rtsp_url', fallback='')
-        self.rtsp_fallback = config.get(camera_id, 'rtsp_fallback', fallback=None)
-        self.username = config.get(camera_id, 'username', fallback='admin')
-        self.password = config.get(camera_id, 'password', fallback='')
-        self.location = config.get(camera_id, 'location', fallback=f'Camera {self.camera_num}')
-        self.fps = config.getint(camera_id, 'fps', fallback=10)
-        self.quality = config.get(camera_id, 'quality', fallback='medium')
-        self.frame_skip = config.getint(camera_id, 'frame_skip', fallback=1)
+
+        # Configurações da câmera via .env
+        camera_prefix = f'CAMERA{self.camera_num}_'
+        self.enabled = os.getenv(f'{camera_prefix}ENABLED', 'false').lower() == 'true'
+        self.rtsp_url = os.getenv(f'{camera_prefix}RTSP_URL', '')
+        self.rtsp_fallback = os.getenv(f'{camera_prefix}RTSP_FALLBACK')
+        self.username = os.getenv(f'{camera_prefix}USERNAME', 'admin')
+        self.password = os.getenv(f'{camera_prefix}PASSWORD', '')
+        self.location = os.getenv(f'{camera_prefix}LOCATION', f'Camera {self.camera_num}')
+        self.fps = int(os.getenv(f'{camera_prefix}FPS', '10'))
+        self.quality = os.getenv(f'{camera_prefix}QUALITY', 'medium')
+        self.frame_skip = int(os.getenv(f'{camera_prefix}FRAME_SKIP', '1'))
         
         # Estado interno
         self.cap = None
@@ -1267,8 +1267,13 @@ class DashboardServer:
     def get_snapshot(self, camera_id):
         """API endpoint para obter snapshot de câmera"""
         try:
-            if camera_id in self.bridge.cameras:
-                camera = self.bridge.cameras[camera_id]
+            # Handle camera ID mapping: any request maps to the first available camera
+            available_cameras = list(self.bridge.cameras.keys())
+            if available_cameras:
+                # Use the first available camera for any request
+                actual_camera_id = available_cameras[0]
+                camera = self.bridge.cameras[actual_camera_id]
+                logging.debug(f'📸 [{camera_id}] Mapped to actual camera [{actual_camera_id}] for snapshot')
                 
                 # Verifica se câmera está conectada e tem frame disponível
                 if camera.latest_frame is not None:
@@ -1313,8 +1318,13 @@ class DashboardServer:
                         logging.info(f'📺 [{camera_id}] Stream finalizado - sem clientes')
                         break
                     
-                    if camera_id in self.bridge.cameras:
-                        camera = self.bridge.cameras[camera_id]
+                    # Handle camera ID mapping: any request maps to the first available camera
+                    available_cameras = list(self.bridge.cameras.keys())
+                    if available_cameras:
+                        # Use the first available camera for any request
+                        actual_camera_id = available_cameras[0]
+                        camera = self.bridge.cameras[actual_camera_id]
+                        logging.debug(f'📺 [{camera_id}] Mapped to actual camera [{actual_camera_id}]')
                         
                         if camera.latest_frame is not None:
                             with camera.frame_lock:
@@ -1459,21 +1469,21 @@ class DashboardServer:
 
 class MultiCameraBridge:
     """Classe principal do bridge multi-câmera"""
-    
-    def __init__(self, config_file='config.ini'):
-        """Inicializa bridge multi-câmera"""
-        self.config = configparser.ConfigParser()
-        self.config.read(config_file)
-        
+
+    def __init__(self):
+        """Inicializa bridge multi-câmera usando .env"""
+        # Carregar variáveis do .env
+        load_dotenv()
+
         # Configurações globais
-        self.api_url = self.config.get('server', 'api_url')
-        self.api_key = self.config.get('server', 'api_key')
-        self.bridge_id = self.config.get('settings', 'bridge_id', fallback='BRIDGE-001')
-        self.dashboard_enabled = self.config.getboolean('settings', 'dashboard_enabled', fallback=True)
-        self.dashboard_port = self.config.getint('settings', 'dashboard_port', fallback=8888)
-        
+        self.api_url = os.getenv('API_URL', 'http://localhost:8001').rstrip('/')
+        self.api_key = os.getenv('API_KEY', os.getenv('BRIDGE_API_KEY', 'development'))
+        self.bridge_id = os.getenv('BRIDGE_ID', 'BRIDGE-001')
+        self.dashboard_enabled = os.getenv('DASHBOARD_ENABLED', 'true').lower() == 'true'
+        self.dashboard_port = int(os.getenv('DASHBOARD_PORT', '8888'))
+
         # Câmeras habilitadas
-        enabled_cameras_str = self.config.get('general', 'enabled_cameras', fallback='1')
+        enabled_cameras_str = os.getenv('ENABLED_CAMERAS', '1')
         self.enabled_camera_nums = [num.strip() for num in enabled_cameras_str.split(',')]
         
         # Dicionário de câmeras
@@ -1513,15 +1523,15 @@ class MultiCameraBridge:
         for camera_num in self.enabled_camera_nums:
             camera_id = f'camera{camera_num}'
             
-            # Verifica se seção existe no config
-            if not self.config.has_section(camera_id):
-                logging.warning(f'[WARN] Seção [{camera_id}] não encontrada no config.ini - criando com padrões')
+            # Verifica se configurações existem no .env
+            camera_prefix = f'CAMERA{camera_num}_'
+            if not os.getenv(f'{camera_prefix}RTSP_URL'):
+                logging.warning(f'[WARN] Configurações para {camera_id} não encontradas no .env - pulando')
                 continue
             
             # Cria handler da câmera
             camera = CameraHandler(
                 camera_id=camera_id,
-                config=self.config,
                 api_url=self.api_url,
                 api_key=self.api_key,
                 bridge_id=self.bridge_id
@@ -1795,71 +1805,93 @@ class MultiCameraBridge:
         
         logging.info('🛑 Bridge parada com sucesso')
 
-def create_example_config():
-    """Cria arquivo de configuração de exemplo"""
-    example_config = """[general]
-# Lista de câmeras ativas (pode ser 1, 1,2, 1,2,3, ou 1,2,3,4)
-enabled_cameras = 1,2
+def create_example_env():
+    """Cria arquivo .env de exemplo"""
+    example_env = """# ============================================================================
+# SHOPFLOW BRIDGE CONFIGURATION (.env)
+# ============================================================================
 
-[camera1]
-enabled = true
-rtsp_url = rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=0
-rtsp_fallback = rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=1
-username = admin
-password = SUA_SENHA_CAMERA1
-location = Entrada Principal
-fps = 15
-quality = high
-frame_skip = 2
+# ============================================================================
+# GENERAL SETTINGS
+# ============================================================================
+BRIDGE_ID=BRIDGE-001
+ENABLED_CAMERAS=1,2
+DASHBOARD_ENABLED=true
+DASHBOARD_PORT=8888
+RECONNECT_TIMEOUT=10
 
-[camera2]
-enabled = false
-rtsp_url = rtsp://192.168.1.53:554/cam/realmonitor?channel=1&subtype=0
-rtsp_fallback = rtsp://192.168.1.53:554/cam/realmonitor?channel=1&subtype=1
-username = admin
-password = SUA_SENHA_CAMERA2
-location = Caixa
-fps = 10
-quality = medium
-frame_skip = 3
+# ============================================================================
+# BACKEND SERVER CONFIGURATION
+# ============================================================================
+API_URL=http://localhost:8001
+API_KEY=SUA_API_KEY_AQUI
+BRIDGE_API_KEY=SUA_API_KEY_AQUI
 
-[camera3]
-enabled = false
-rtsp_url = rtsp://192.168.1.54:554/cam/realmonitor?channel=1&subtype=0
-username = admin
-password = SUA_SENHA_CAMERA3
-location = Estoque
-fps = 5
-quality = low
-frame_skip = 5
+# ============================================================================
+# CAMERA 1 CONFIGURATION
+# ============================================================================
+CAMERA1_ENABLED=true
+CAMERA1_RTSP_URL=rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=0
+CAMERA1_RTSP_FALLBACK=rtsp://192.168.1.52:554/cam/realmonitor?channel=1&subtype=1
+CAMERA1_USERNAME=admin
+CAMERA1_PASSWORD=SUA_SENHA_CAMERA1
+CAMERA1_LOCATION=Entrada Principal
+CAMERA1_FPS=15
+CAMERA1_QUALITY=high
+CAMERA1_FRAME_SKIP=2
 
-[camera4]
-enabled = false
-rtsp_url = rtsp://192.168.1.55:554/cam/realmonitor?channel=1&subtype=0
-username = admin
-password = SUA_SENHA_CAMERA4
-location = Saída Emergência
-fps = 10
-quality = medium
-frame_skip = 2
+# ============================================================================
+# CAMERA 2 CONFIGURATION
+# ============================================================================
+CAMERA2_ENABLED=false
+CAMERA2_RTSP_URL=rtsp://192.168.1.53:554/cam/realmonitor?channel=1&subtype=0
+CAMERA2_RTSP_FALLBACK=rtsp://192.168.1.53:554/cam/realmonitor?channel=1&subtype=1
+CAMERA2_USERNAME=admin
+CAMERA2_PASSWORD=SUA_SENHA_CAMERA2
+CAMERA2_LOCATION=Caixa
+CAMERA2_FPS=10
+CAMERA2_QUALITY=medium
+CAMERA2_FRAME_SKIP=3
 
-[server]
-# Backend EasyPanel em Produção
-api_url = https://api-shopflow.hshars.easypanel.host
-api_key = bridge_api_key_123
+# ============================================================================
+# CAMERA 3 CONFIGURATION
+# ============================================================================
+CAMERA3_ENABLED=false
+CAMERA3_RTSP_URL=rtsp://192.168.1.54:554/cam/realmonitor?channel=1&subtype=0
+CAMERA3_RTSP_FALLBACK=rtsp://192.168.1.54:554/cam/realmonitor?channel=1&subtype=1
+CAMERA3_USERNAME=admin
+CAMERA3_PASSWORD=SUA_SENHA_CAMERA3
+CAMERA3_LOCATION=Estoque
+CAMERA3_FPS=5
+CAMERA3_QUALITY=low
+CAMERA3_FRAME_SKIP=5
 
-[settings]
-bridge_id = BRIDGE-001
-reconnect_timeout = 10
-dashboard_enabled = true
-dashboard_port = 8888
+# ============================================================================
+# CAMERA 4 CONFIGURATION
+# ============================================================================
+CAMERA4_ENABLED=false
+CAMERA4_RTSP_URL=rtsp://192.168.1.55:554/cam/realmonitor?channel=1&subtype=0
+CAMERA4_RTSP_FALLBACK=rtsp://192.168.1.55:554/cam/realmonitor?channel=1&subtype=1
+CAMERA4_USERNAME=admin
+CAMERA4_PASSWORD=SUA_SENHA_CAMERA4
+CAMERA4_LOCATION=Saída Emergência
+CAMERA4_FPS=10
+CAMERA4_QUALITY=medium
+CAMERA4_FRAME_SKIP=2
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+LOG_LEVEL=INFO
+LOG_FILE=logs/bridge.log
+LOG_CONSOLE=true
 """
-    
-    with open('config.ini.example', 'w', encoding='utf-8') as f:
-        f.write(example_config)
-        
-    logging.info('📝 Arquivo config.ini.example criado!')
-    logging.info('Copie para config.ini e configure suas câmeras')
+
+    with open('.env.example', 'w', encoding='utf-8') as f:
+        f.write(example_env)
+
+    logging.info('📝 Arquivo .env.example criado!')
+    logging.info('Copie para .env e configure suas câmeras')
 
 def main():
     """Função principal"""
@@ -1872,10 +1904,10 @@ def main():
     """)
     
     # Verifica arquivo de configuração
-    if not os.path.exists('config.ini'):
-        logging.error('[ERRO] Arquivo config.ini não encontrado!')
+    if not os.path.exists('.env'):
+        logging.error('[ERRO] Arquivo .env não encontrado!')
         logging.info('Criando arquivo de exemplo...')
-        create_example_config()
+        create_example_env()
         return
     
     # Inicia bridge multi-câmera
