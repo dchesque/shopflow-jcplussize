@@ -133,9 +133,14 @@ export function CameraConfigForm({
       // In production, this would call the backend API to test camera connection
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock response
-      const success = Math.random() > 0.3; // 70% chance de sucesso
-      setConnectionStatus(success ? 'success' : 'error');
+      // Real connection test (assuming API validates connection)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/cameras/test-connection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      setConnectionStatus(response.ok ? 'success' : 'error');
     } catch (error) {
       setConnectionStatus('error');
     } finally {

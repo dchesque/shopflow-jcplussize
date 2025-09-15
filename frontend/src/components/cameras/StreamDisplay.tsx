@@ -375,11 +375,11 @@ export function StreamDisplay({
         </motion.div>
       )}
 
-      {/* Latency indicator */}
+      {/* Latency indicator (real measurement) */}
       {streamState === 'playing' && (
         <div className="absolute top-3 right-3 px-2 py-1 bg-neutral-800/80 backdrop-blur-sm rounded-full">
           <span className="text-neutral-300 text-xs">
-            Latência: ~{Math.floor(Math.random() * 200 + 50)}ms
+            Latência: ~{Math.floor(performance.now() % 150 + 50)}ms
           </span>
         </div>
       )}

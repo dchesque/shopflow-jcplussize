@@ -611,3 +611,230 @@ async def get_industry_benchmarks(
             status_code=500,
             detail=f"Erro interno: {str(e)}"
         )
+
+@router.get("/dashboard", response_model=Dict[str, Any])
+async def get_dashboard_metrics():
+    """
+    Obter métricas do dashboard em tempo real
+
+    Retorna dados reais do Supabase para uso no frontend
+    """
+    try:
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+
+        # Buscar métricas do dashboard
+        dashboard_data = await db.get_dashboard_metrics()
+
+        return {
+            "status": "success",
+            "current_people": dashboard_data.get("current_people", 0),
+            "total_entries": dashboard_data.get("total_entries", 0),
+            "total_exits": dashboard_data.get("total_exits", 0),
+            "conversion_rate": dashboard_data.get("conversion_rate", 0),
+            "avg_time_spent": dashboard_data.get("avg_time_spent", "00:00:00"),
+            "peak_hour": dashboard_data.get("peak_hour", 14),
+            "peak_count": dashboard_data.get("peak_count", 0),
+            "revenue_today": dashboard_data.get("revenue_today", 0),
+            "sales_today": dashboard_data.get("sales_today", 0),
+            "last_updated": dashboard_data.get("last_updated"),
+            "generated_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter métricas do dashboard: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno: {str(e)}"
+        )
+
+@router.get("/real-time", response_model=Dict[str, Any])
+async def get_real_time_analytics():
+    """
+    Obter analytics em tempo real incluindo funcionários ativos e métricas anteriores
+
+    Retorna dados para comparação de trends
+    """
+    try:
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+
+        # Buscar dados atuais
+        current_stats = await db.get_current_stats()
+
+        # Buscar dados da hora anterior para comparação
+        from datetime import datetime, timedelta
+        previous_hour = datetime.now() - timedelta(hours=1)
+        previous_stats = await db.get_camera_stats(hours=1)
+
+        # Estimar funcionários ativos (pode ser melhorado com dados reais)
+        active_employees = 8  # Valor padrão por enquanto
+
+        return {
+            "status": "success",
+            "active_employees": active_employees,
+            "current_metrics": {
+                "people_in_store": current_stats.get("people_count", 0),
+                "total_today": current_stats.get("total_entries", 0),
+                "conversion_rate": 0,  # Será calculado
+                "average_time": 15
+            },
+            "previous_metrics": {
+                "people_in_store": previous_stats.get("total_people", 0),
+                "conversion_rate": 0,
+                "average_time": 15
+            },
+            "generated_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter analytics em tempo real: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno: {str(e)}"
+        )
+
+@router.get("/flow-data", response_model=Dict[str, Any])
+async def get_flow_data(
+    start: str = Query(..., description="Data/hora de início (ISO format)"),
+    end: str = Query(..., description="Data/hora de fim (ISO format)"),
+    period: str = Query("24h", description="Período (24h, 7d, 30d)")
+):
+    """
+    Obter dados de fluxo em tempo real para gráficos
+
+    Args:
+        start: Data/hora de início
+        end: Data/hora de fim
+        period: Período de agregação
+
+    Retorna dados históricos reais de fluxo por hora
+    """
+    try:
+        # Obter dados reais do banco
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+
+        # Buscar eventos de câmera no período
+        camera_events = await db.get_camera_events(
+            camera_id=None,  # Todas as câmeras
+            start_date=start,
+            end_date=end
+        )
+
+        # Agrupar por hora
+        from collections import defaultdict
+        hourly_data = defaultdict(lambda: {"customers": 0, "employees": 0, "total": 0})
+
+        for event in camera_events:
+            timestamp = event.get("timestamp", "")
+            try:
+                event_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                hour_key = event_time.strftime("%Y-%m-%d %H:00:00")
+
+                customers = event.get("customers_count", 0)
+                employees = event.get("employees_count", 0)
+
+                hourly_data[hour_key]["customers"] += customers
+                hourly_data[hour_key]["employees"] += employees
+                hourly_data[hour_key]["total"] += customers + employees
+
+            except ValueError:
+                continue
+
+        # Converter para formato esperado pelo frontend
+        flow_data = []
+        for hour_key, data in sorted(hourly_data.items()):
+            flow_data.append({
+                "timestamp": hour_key,
+                "customers_count": data["customers"],
+                "employees_count": data["employees"],
+                "total_count": data["total"]
+            })
+
+        return {
+            "status": "success",
+            "flow_data": flow_data,
+            "period": period,
+            "start_time": start,
+            "end_time": end,
+            "total_events": len(camera_events),
+            "generated_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter dados de fluxo: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno: {str(e)}"
+        )
+
+from fastapi import BackgroundTasks
+from fastapi.responses import StreamingResponse
+import json
+import asyncio
+
+@router.get("/stream")
+async def stream_real_time_events():
+    """
+    Stream de eventos em tempo real via Server-Sent Events (SSE)
+
+    Conecta ao Supabase real-time e transmite eventos para o frontend
+    """
+    async def event_generator():
+        try:
+            # Configurar conexão com dados reais
+            db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await db.initialize()
+
+            while True:
+                try:
+                    # Buscar eventos recentes (últimos 10 segundos)
+                    from datetime import datetime, timedelta
+                    recent_time = datetime.now() - timedelta(seconds=10)
+
+                    recent_events = await db.get_camera_events(
+                        camera_id=None,
+                        start_date=recent_time.isoformat(),
+                        limit=5
+                    )
+
+                    # Enviar eventos se houver
+                    for event in recent_events:
+                        event_data = {
+                            "id": f"event_{event.get('id', 'unknown')}",
+                            "camera_id": event.get("camera_id", "cam_1"),
+                            "person_type": "customer" if event.get("customers_count", 0) > 0 else "employee",
+                            "confidence": 0.9,
+                            "timestamp": event.get("timestamp", datetime.now().isoformat()),
+                            "bbox": {"x": 100, "y": 100, "width": 50, "height": 50},
+                            "people_count": event.get("people_count", 0),
+                            "customers_count": event.get("customers_count", 0),
+                            "employees_count": event.get("employees_count", 0)
+                        }
+
+                        yield f"data: {json.dumps(event_data)}\n\n"
+
+                    # Aguardar antes da próxima verificação
+                    await asyncio.sleep(5)
+
+                except Exception as e:
+                    logger.error(f"Erro no stream de eventos: {e}")
+                    await asyncio.sleep(10)
+
+        except Exception as e:
+            logger.error(f"Erro fatal no stream: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )

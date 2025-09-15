@@ -55,184 +55,83 @@ export const analyticsKeys = {
   zones: () => [...analyticsKeys.all, 'zones'] as const,
 }
 
-// Mock data generators
-const generateMockAttendance = (employeeId: string, month: Date): AttendanceRecord[] => {
-  const records: AttendanceRecord[] = []
-  const startDate = startOfMonth(month)
-  const endDate = endOfMonth(month)
-  
-  for (let date = new Date(startDate); date <= endDate; date = addDays(date, 1)) {
-    const dayOfWeek = date.getDay()
-    
-    // Skip weekends for work days
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue
-    
-    const random = Math.random()
-    let status: AttendanceRecord['status']
-    let checkIn: string | undefined
-    let checkOut: string | undefined
-    let hoursWorked: number | undefined
-    
-    if (random > 0.95) {
-      status = 'absent'
-    } else if (random > 0.9) {
-      status = 'sick'
-    } else if (random > 0.85) {
-      status = 'vacation'
-    } else if (random > 0.8) {
-      status = 'late'
-      checkIn = '09:15'
-      checkOut = '18:00'
-      hoursWorked = 8.25
-    } else if (random > 0.7) {
-      status = 'half_day'
-      checkIn = '09:00'
-      checkOut = '13:00'
-      hoursWorked = 4
-    } else {
-      status = 'present'
-      checkIn = '09:00'
-      checkOut = '18:00'
-      hoursWorked = 8
-    }
-    
-    records.push({
-      date: new Date(date),
-      status,
-      checkIn,
-      checkOut,
-      hoursWorked,
-      notes: status === 'sick' ? 'Atestado médico' : status === 'late' ? 'Trânsito' : undefined
-    })
-  }
-  
-  return records
-}
+// Real data integration - All data now comes from the backend API
 
-const generateMockHoursData = (employeeId: string, period: 'week' | 'month', startDate: Date, endDate: Date): HoursData[] => {
-  const data: HoursData[] = []
-  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24))
-  
-  if (period === 'week') {
-    // Generate weekly data
-    for (let i = 0; i < Math.min(daysDiff / 7, 12); i++) {
-      const weekStart = addDays(startDate, i * 7)
-      const regularHours = 35 + Math.random() * 10
-      const overtimeHours = Math.random() > 0.7 ? Math.random() * 8 : 0
-      
-      data.push({
-        period: `Sem ${i + 1}`,
-        date: weekStart,
-        regularHours: Math.round(regularHours * 10) / 10,
-        overtimeHours: Math.round(overtimeHours * 10) / 10,
-        expectedHours: 40,
-        productivity: 80 + Math.random() * 20,
-        department: 'Vendas'
-      })
-    }
-  } else {
-    // Generate monthly data
-    for (let i = 0; i < Math.min(daysDiff / 30, 12); i++) {
-      const monthStart = addDays(startDate, i * 30)
-      const regularHours = 160 + Math.random() * 20
-      const overtimeHours = Math.random() > 0.5 ? Math.random() * 20 : 0
-      
-      data.push({
-        period: format(monthStart, 'MMM/yy'),
-        date: monthStart,
-        regularHours: Math.round(regularHours * 10) / 10,
-        overtimeHours: Math.round(overtimeHours * 10) / 10,
-        expectedHours: 160,
-        productivity: 75 + Math.random() * 25,
-        department: 'Vendas'
-      })
-    }
-  }
-  
-  return data
-}
-
-const generateMockPresenceData = (employeeId: string, dateRange: { start: Date; end: Date }): PresencePoint[] => {
-  const data: PresencePoint[] = []
-  const zones = ['Entrada', 'Caixa', 'Provador', 'Estoque', 'Escritório', 'Descanso']
-  const activities: PresencePoint['activity'][] = ['work', 'break', 'meeting', 'idle']
-  
-  // Generate 50-200 random presence points
-  const count = 50 + Math.random() * 150
-  
-  for (let i = 0; i < count; i++) {
-    const randomDate = new Date(dateRange.start.getTime() + Math.random() * (dateRange.end.getTime() - dateRange.start.getTime()))
-    
-    data.push({
-      employeeId,
-      employeeName: `Funcionário ${employeeId}`,
-      timestamp: randomDate,
-      zone: zones[Math.floor(Math.random() * zones.length)],
-      duration: 5 + Math.random() * 120, // 5-125 minutes
-      activity: activities[Math.floor(Math.random() * activities.length)],
-      department: 'Vendas'
-    })
-  }
-  
-  return data.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-}
-
-const mockZones: Zone[] = [
-  { id: 'entrada', name: 'Entrada', type: 'common', color: '#3b82f6' },
-  { id: 'caixa', name: 'Caixa', type: 'work', color: '#10b981' },
-  { id: 'provador', name: 'Provador', type: 'work', color: '#f59e0b' },
-  { id: 'estoque', name: 'Estoque', type: 'work', color: '#ef4444' },
-  { id: 'escritorio', name: 'Escritório', type: 'meeting', color: '#8b5cf6' },
-  { id: 'descanso', name: 'Área de Descanso', type: 'break', color: '#06b6d4' }
-]
-
-// API Functions (using mock data for now)
+// API Functions (REAL DATA from backend)
 async function fetchAttendanceData(employeeId: string, month: Date): Promise<AttendanceRecord[]> {
-  // Mock API call
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // In production, this would be:
-  // const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/attendance?month=${format(month, 'yyyy-MM')}`)
-  // if (!response.ok) throw new Error('Failed to fetch attendance data')
-  // return response.json()
-  
-  return generateMockAttendance(employeeId, month)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/attendance?month=${format(month, 'yyyy-MM')}`)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch attendance data')
+    }
+
+    const data = await response.json()
+    return data.attendance_records || []
+
+  } catch (error) {
+    console.error('Error fetching real attendance data:', error)
+
+    // Fallback: retornar dados vazios se API falhar
+    return []
+  }
 }
 
 async function fetchHoursData(employeeId: string, period: 'week' | 'month', startDate: Date, endDate: Date): Promise<HoursData[]> {
-  // Mock API call
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // In production:
-  // const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/hours?period=${period}&start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}`)
-  // if (!response.ok) throw new Error('Failed to fetch hours data')
-  // return response.json()
-  
-  return generateMockHoursData(employeeId, period, startDate, endDate)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/hours?period=${period}&start=${format(startDate, 'yyyy-MM-dd')}&end=${format(endDate, 'yyyy-MM-dd')}`)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch hours data')
+    }
+
+    const data = await response.json()
+    return data.hours_data || []
+
+  } catch (error) {
+    console.error('Error fetching real hours data:', error)
+
+    // Fallback: retornar dados vazios se API falhar
+    return []
+  }
 }
 
 async function fetchPresenceData(employeeId: string, dateRange: { start: Date; end: Date }): Promise<PresencePoint[]> {
-  // Mock API call
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // In production:
-  // const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/presence?start=${format(dateRange.start, 'yyyy-MM-dd')}&end=${format(dateRange.end, 'yyyy-MM-dd')}`)
-  // if (!response.ok) throw new Error('Failed to fetch presence data')
-  // return response.json()
-  
-  return generateMockPresenceData(employeeId, dateRange)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}/presence?start=${format(dateRange.start, 'yyyy-MM-dd')}&end=${format(dateRange.end, 'yyyy-MM-dd')}`)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch presence data')
+    }
+
+    const data = await response.json()
+    return data.presence_points || []
+
+  } catch (error) {
+    console.error('Error fetching real presence data:', error)
+
+    // Fallback: retornar dados vazios se API falhar
+    return []
+  }
 }
 
 async function fetchZones(): Promise<Zone[]> {
-  // Mock API call
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // In production:
-  // const response = await fetch(`${API_BASE_URL}/api/zones`)
-  // if (!response.ok) throw new Error('Failed to fetch zones')
-  // return response.json()
-  
-  return mockZones
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/zones`)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch zones')
+    }
+
+    const data = await response.json()
+    return data.zones || []
+
+  } catch (error) {
+    console.error('Error fetching real zones data:', error)
+
+    // Fallback: retornar array vazio se API falhar
+    return []
+  }
 }
 
 // Hooks

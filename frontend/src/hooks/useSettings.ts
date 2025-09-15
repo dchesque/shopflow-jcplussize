@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+
 // Types
 export interface PrivacySetting {
   id: string
@@ -55,24 +57,15 @@ export function usePrivacySettings() {
   return useQuery({
     queryKey: ['privacy-settings'],
     queryFn: async (): Promise<PrivacySetting[]> => {
-      // Mock data - integrar com backend
-      return [
-        {
-          id: '1',
-          key: 'face_recognition',
-          value: true,
-          category: 'recognition',
-          description: 'Ativar detecção e reconhecimento de funcionários'
-        },
-        {
-          id: '2',
-          key: 'data_retention_days',
-          value: 90,
-          category: 'data',
-          required: true,
-          description: 'Período de retenção de dados em dias'
-        }
-      ]
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/settings/privacy`)
+        if (!response.ok) throw new Error('Failed to fetch privacy settings')
+        const data = await response.json()
+        return data.settings || []
+      } catch (error) {
+        console.error('Error fetching privacy settings:', error)
+        return []
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -107,19 +100,15 @@ export function useUsers() {
   return useQuery({
     queryKey: ['users'],
     queryFn: async (): Promise<User[]> => {
-      // Mock data - integrar com backend
-      return [
-        {
-          id: '1',
-          name: 'João Silva',
-          email: 'joao@shopflow.com',
-          role: 'owner',
-          status: 'active',
-          lastSeen: new Date(Date.now() - 1000 * 60 * 15),
-          permissions: ['all'],
-          createdAt: new Date('2024-01-15')
-        }
-      ]
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users`)
+        if (!response.ok) throw new Error('Failed to fetch users')
+        const data = await response.json()
+        return data.users || []
+      } catch (error) {
+        console.error('Error fetching users:', error)
+        return []
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
@@ -197,32 +186,25 @@ export function useStoreInfo() {
   return useQuery({
     queryKey: ['store-info'],
     queryFn: async (): Promise<StoreInfo> => {
-      // Mock data - integrar com backend
-      return {
-        id: '1',
-        name: 'Loja ShopFlow Centro',
-        address: 'Rua das Flores, 123 - Centro, São Paulo - SP',
-        phone: '(11) 98765-4321',
-        email: 'contato@shopflow-centro.com.br',
-        cnpj: '12.345.678/0001-90',
-        maxCapacity: 150,
-        operatingHours: {
-          monday: { open: '09:00', close: '19:00', enabled: true },
-          tuesday: { open: '09:00', close: '19:00', enabled: true },
-          wednesday: { open: '09:00', close: '19:00', enabled: true },
-          thursday: { open: '09:00', close: '19:00', enabled: true },
-          friday: { open: '09:00', close: '20:00', enabled: true },
-          saturday: { open: '09:00', close: '18:00', enabled: true },
-          sunday: { open: '10:00', close: '16:00', enabled: false },
-        },
-        zones: [
-          {
-            id: '1',
-            name: 'Entrada Principal',
-            description: 'Área de entrada e recepção de clientes',
-            color: '#ef4444'
-          }
-        ]
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/settings/store`)
+        if (!response.ok) throw new Error('Failed to fetch store info')
+        const data = await response.json()
+        return data.store || {}
+      } catch (error) {
+        console.error('Error fetching store info:', error)
+        // Return minimal store object if API fails
+        return {
+          id: '',
+          name: '',
+          address: '',
+          phone: '',
+          email: '',
+          cnpj: '',
+          maxCapacity: 0,
+          operatingHours: {},
+          zones: []
+        }
       }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -257,18 +239,37 @@ export function useSystemStatus() {
   return useQuery({
     queryKey: ['system-status'],
     queryFn: async () => {
-      // Mock data - integrar com backend health check
-      return {
-        uptime: '99.9%',
-        dataUsage: '2.3GB',
-        activeUsers: 156,
-        lastBackup: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-        systemHealth: 'healthy',
-        components: {
-          database: true,
-          ai_engine: true,
-          cameras: true,
-          analytics: true
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/settings/system-status`)
+        if (!response.ok) throw new Error('Failed to fetch system status')
+        const data = await response.json()
+        return data.status || {
+          uptime: '0%',
+          dataUsage: '0GB',
+          activeUsers: 0,
+          lastBackup: null,
+          systemHealth: 'unknown',
+          components: {
+            database: false,
+            ai_engine: false,
+            cameras: false,
+            analytics: false
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching system status:', error)
+        return {
+          uptime: '0%',
+          dataUsage: '0GB',
+          activeUsers: 0,
+          lastBackup: null,
+          systemHealth: 'error',
+          components: {
+            database: false,
+            ai_engine: false,
+            cameras: false,
+            analytics: false
+          }
         }
       }
     },
@@ -282,18 +283,37 @@ export function useComplianceReport() {
   return useQuery({
     queryKey: ['compliance-report'],
     queryFn: async () => {
-      // Mock data - integrar com backend compliance
-      return {
-        lgpdCompliant: true,
-        gdprCompliant: false,
-        dataRetentionPeriod: 90,
-        encryptedDataPercentage: 100,
-        auditLogsEnabled: true,
-        lastAudit: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
-        rightsRequests: {
-          access: 5,
-          correction: 2,
-          deletion: 1
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/settings/compliance`)
+        if (!response.ok) throw new Error('Failed to fetch compliance report')
+        const data = await response.json()
+        return data.compliance || {
+          lgpdCompliant: false,
+          gdprCompliant: false,
+          dataRetentionPeriod: 0,
+          encryptedDataPercentage: 0,
+          auditLogsEnabled: false,
+          lastAudit: null,
+          rightsRequests: {
+            access: 0,
+            correction: 0,
+            deletion: 0
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching compliance report:', error)
+        return {
+          lgpdCompliant: false,
+          gdprCompliant: false,
+          dataRetentionPeriod: 0,
+          encryptedDataPercentage: 0,
+          auditLogsEnabled: false,
+          lastAudit: null,
+          rightsRequests: {
+            access: 0,
+            correction: 0,
+            deletion: 0
+          }
         }
       }
     },

@@ -182,7 +182,7 @@ export function CustomKPIBuilder({
       trend: 5.2,
       historicalData: Array.from({ length: 30 }, (_, i) => ({
         timestamp: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString(),
-        value: 140 + Math.random() * 60 + Math.sin(i * 0.2) * 20,
+        value: 140 + Math.sin(i * 0.2) * 20,
         date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
       }))
     },
@@ -207,7 +207,7 @@ export function CustomKPIBuilder({
       trend: -2.1,
       historicalData: Array.from({ length: 24 }, (_, i) => ({
         timestamp: new Date(Date.now() - (23 - i) * 60 * 60 * 1000).toISOString(),
-        value: 20 + Math.random() * 30 + Math.sin(i * 0.5) * 15,
+        value: 20 + Math.sin(i * 0.5) * 15,
         date: `${i.toString().padStart(2, '0')}:00`
       }))
     }
@@ -286,10 +286,10 @@ export function CustomKPIBuilder({
       createdAt: isEditing ? selectedKPI!.createdAt : new Date().toISOString().split('T')[0],
       lastCalculated: new Date().toISOString(),
       currentValue: calculateKPIValue(formData.formula),
-      trend: Math.random() * 20 - 10, // Mock trend
+      trend: 0, // Real trend should come from backend calculation
       historicalData: Array.from({ length: 30 }, (_, i) => ({
         timestamp: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString(),
-        value: calculateKPIValue(formData.formula) * (0.8 + Math.random() * 0.4),
+        value: calculateKPIValue(formData.formula),
         date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
       }))
     }

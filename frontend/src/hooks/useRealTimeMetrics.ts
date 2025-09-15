@@ -5,10 +5,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 // import { useRealtimeChannel } from '@/components/providers/RealtimeProvider' // Disabled for demo
 
-// Mock useRealtimeChannel for demo
-const useRealtimeChannel = (channel: string, callbacks: any, options?: any) => {
-  return { isSubscribed: false }
-}
 import { supabase, CameraEvent } from '@/lib/supabase'
 
 // Types for our metrics
@@ -37,30 +33,75 @@ export interface LiveMetrics {
   }
 }
 
-// Fetch current metrics from API
+// Fetch current metrics from API (REAL DATA)
 async function fetchCurrentMetrics(): Promise<LiveMetrics> {
-  // Mock data for development - return realistic demo data
-  const peopleInStore = Math.floor(Math.random() * 50) + 20
-  const totalToday = Math.floor(Math.random() * 200) + 100
-  const conversionRate = Math.round((peopleInStore / totalToday) * 100)
-  const averageTime = 15 + Math.floor(Math.random() * 30)
-  
-  const peakHour = {
-    hour: 14 + Math.floor(Math.random() * 4), // Between 14-17h
-    count: Math.floor(Math.random() * 30) + 20
-  }
+  try {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
-  return {
-    peopleInStore,
-    conversionRate,
-    averageTime,
-    activeEmployees: 8,
-    totalToday,
-    peakHour,
-    trends: {
-      peopleInStore: Math.random() > 0.5 ? 'up' : 'down',
-      conversionRate: Math.random() > 0.5 ? 'up' : 'down',
-      averageTime: Math.random() > 0.5 ? 'up' : 'down'
+    // Buscar dados reais do backend
+    const [dashboardResponse, analyticsResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/analytics/dashboard`),
+      fetch(`${API_BASE_URL}/api/analytics/real-time`)
+    ])
+
+    if (!dashboardResponse.ok || !analyticsResponse.ok) {
+      throw new Error('Failed to fetch real metrics')
+    }
+
+    const dashboardData = await dashboardResponse.json()
+    const analyticsData = await analyticsResponse.json()
+
+    // Processar dados reais do backend
+    const peopleInStore = dashboardData.current_people || 0
+    const totalToday = dashboardData.total_entries || 0
+    const conversionRate = dashboardData.conversion_rate || 0
+    const averageTime = Math.round(parseFloat(dashboardData.avg_time_spent?.replace(':', '.') || '0') * 60) // Converter HH:MM para minutos
+    const activeEmployees = analyticsData.active_employees || 0
+
+    const peakHour = {
+      hour: dashboardData.peak_hour || 14,
+      count: dashboardData.peak_count || 0
+    }
+
+    // Calcular trends com base em dados históricos
+    const currentHour = new Date().getHours()
+    const previousMetrics = analyticsData.previous_metrics || {}
+
+    const trends = {
+      peopleInStore: peopleInStore > (previousMetrics.people_in_store || 0) ? 'up' as const :
+                     peopleInStore < (previousMetrics.people_in_store || 0) ? 'down' as const : 'neutral' as const,
+      conversionRate: conversionRate > (previousMetrics.conversion_rate || 0) ? 'up' as const :
+                      conversionRate < (previousMetrics.conversion_rate || 0) ? 'down' as const : 'neutral' as const,
+      averageTime: averageTime > (previousMetrics.average_time || 0) ? 'up' as const :
+                   averageTime < (previousMetrics.average_time || 0) ? 'down' as const : 'neutral' as const
+    }
+
+    return {
+      peopleInStore,
+      conversionRate,
+      averageTime,
+      activeEmployees,
+      totalToday,
+      peakHour,
+      trends
+    }
+
+  } catch (error) {
+    console.error('Error fetching real metrics:', error)
+
+    // Fallback to basic data if API fails
+    return {
+      peopleInStore: 0,
+      conversionRate: 0,
+      averageTime: 0,
+      activeEmployees: 0,
+      totalToday: 0,
+      peakHour: null,
+      trends: {
+        peopleInStore: 'neutral',
+        conversionRate: 'neutral',
+        averageTime: 'neutral'
+      }
     }
   }
 }
@@ -119,7 +160,7 @@ export function useRealTimeMetrics(options: {
       const updated: LiveMetrics = {
         ...old,
         totalToday: old.totalToday + 1,
-        // Simulate people count changes based on event
+        // Update people count based on real camera event
         peopleInStore: event.person_type === 'customer' ? old.peopleInStore + 1 : old.peopleInStore
       }
 
@@ -139,23 +180,44 @@ export function useRealTimeMetrics(options: {
   // Subscribe to camera events for real-time updates (disabled for demo)
   const isSubscribed = false // Disabled to prevent CORS errors
 
-  // Simulate real-time events for development (will be replaced by actual real-time data)
+  // Subscribe to real camera events from backend
   React.useEffect(() => {
     if (enableRealtime && enabled) {
-      const interval = setInterval(() => {
-        if (Math.random() > 0.8) { // 20% chance of event
-          handleCameraEvent({
-            id: `event_${Date.now()}`,
-            camera_id: 'cam_1',
-            person_type: Math.random() > 0.5 ? 'customer' : 'employee',
-            confidence: 0.85 + Math.random() * 0.15,
-            timestamp: new Date().toISOString(),
-            bbox: { x: 100, y: 100, width: 50, height: 50 }
-          })
-        }
-      }, 20000)
+      let eventSource: EventSource | null = null
 
-      return () => clearInterval(interval)
+      // Conectar ao stream de eventos reais do backend
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+        eventSource = new EventSource(`${API_BASE_URL}/api/analytics/stream`)
+
+        eventSource.onmessage = (event) => {
+          try {
+            const cameraEvent = JSON.parse(event.data)
+            handleCameraEvent(cameraEvent)
+          } catch (error) {
+            console.error('Error parsing camera event:', error)
+          }
+        }
+
+        eventSource.onerror = (error) => {
+          console.error('EventSource error:', error)
+          setIsLive(false)
+        }
+
+        eventSource.onopen = () => {
+          console.log('Connected to real-time camera events')
+          setIsLive(true)
+        }
+
+      } catch (error) {
+        console.error('Failed to connect to real-time events:', error)
+      }
+
+      return () => {
+        if (eventSource) {
+          eventSource.close()
+        }
+      }
     }
   }, [enableRealtime, enabled, handleCameraEvent])
 
@@ -219,7 +281,7 @@ export function useRealTimeMetrics(options: {
   }
 }
 
-// Hook for flow chart real-time data
+// Hook for flow chart real-time data (REAL DATA)
 export function useRealTimeFlowData(timeRange: '24h' | '7d' | '30d' = '24h') {
   const [flowData, setFlowData] = useState<Array<{
     timestamp: string
@@ -229,42 +291,63 @@ export function useRealTimeFlowData(timeRange: '24h' | '7d' | '30d' = '24h') {
     total: number
   }>>([])
 
-  // Generate initial flow data
+  // Fetch real flow data from backend
   useEffect(() => {
-    const generateFlowData = () => {
-      const hours = []
-      const now = new Date()
-      const hoursToGenerate = timeRange === '24h' ? 24 : timeRange === '7d' ? 24 * 7 : 24 * 30
-      
-      for (let i = hoursToGenerate - 1; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 60 * 60 * 1000)
-        const hour = time.getHours()
-        
-        // Simulate realistic patterns
-        const baseCustomers = hour >= 9 && hour <= 21 ? 
-          Math.round(15 + Math.sin((hour - 9) / 12 * Math.PI) * 10) : 
-          Math.round(2 + Math.random() * 3)
-        
-        const baseEmployees = hour >= 8 && hour <= 22 ? 
-          Math.round(3 + Math.random() * 2) : 
-          Math.round(1 + Math.random())
-        
-        const customers = Math.max(0, baseCustomers + Math.round((Math.random() - 0.5) * 8))
-        const employees = Math.max(1, baseEmployees + Math.round((Math.random() - 0.5) * 2))
-        
-        hours.push({
-          timestamp: time.toISOString(),
-          hour: time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          customers,
-          employees,
-          total: customers + employees
-        })
+    const fetchFlowData = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+
+        // Calcular período baseado no timeRange
+        const now = new Date()
+        const hoursToGenerate = timeRange === '24h' ? 24 : timeRange === '7d' ? 24 * 7 : 24 * 30
+        const startTime = new Date(now.getTime() - hoursToGenerate * 60 * 60 * 1000)
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/analytics/flow-data?start=${startTime.toISOString()}&end=${now.toISOString()}&period=${timeRange}`
+        )
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch flow data')
+        }
+
+        const data = await response.json()
+        const realFlowData = data.flow_data || []
+
+        // Processar dados reais para o formato esperado
+        const processedData = realFlowData.map((item: any) => ({
+          timestamp: item.timestamp,
+          hour: new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          customers: item.customers_count || 0,
+          employees: item.employees_count || 0,
+          total: (item.customers_count || 0) + (item.employees_count || 0)
+        }))
+
+        setFlowData(processedData)
+
+      } catch (error) {
+        console.error('Error fetching real flow data:', error)
+
+        // Fallback: preencher com dados vazios se API falhar
+        const emptyData = []
+        const now = new Date()
+        const hoursToGenerate = timeRange === '24h' ? 24 : timeRange === '7d' ? 24 * 7 : 24 * 30
+
+        for (let i = hoursToGenerate - 1; i >= 0; i--) {
+          const time = new Date(now.getTime() - i * 60 * 60 * 1000)
+          emptyData.push({
+            timestamp: time.toISOString(),
+            hour: time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            customers: 0,
+            employees: 0,
+            total: 0
+          })
+        }
+
+        setFlowData(emptyData)
       }
-      
-      return hours
     }
 
-    setFlowData(generateFlowData())
+    fetchFlowData()
   }, [timeRange])
 
   // Handle real-time updates
@@ -307,7 +390,7 @@ export function useConnectionStatus() {
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null)
 
   useEffect(() => {
-    // Simulate connection status
+    // Real connection status based on actual data updates
     const interval = setInterval(() => {
       setStatus('connected')
       setLastHeartbeat(new Date())

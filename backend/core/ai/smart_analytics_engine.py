@@ -142,8 +142,9 @@ class SmartAnalyticsEngine:
         )
         
         # 4. Gerar predições
+        historical_data = await self._get_historical_data()
         predictions = await self.predictive.generate_predictions(
-            historical_data=self._get_historical_data(),
+            historical_data=historical_data,
             current_state=behavior_data,
             timestamp=timestamp
         )
@@ -370,18 +371,47 @@ class SmartAnalyticsEngine:
         confidences = [d.get('confidence', 0.5) for d in detections]
         return sum(confidences) / len(confidences)
     
-    def _get_historical_data(self) -> Dict:
+    async def _get_historical_data(self) -> Dict:
         """
-        Obter dados históricos para predições
+        Obter dados históricos reais do banco de dados
         """
-        # Implementar busca no banco de dados
-        # Por ora, retornar dados mock
-        return {
-            'last_hour_visitors': 45,
-            'last_hour_sales': 12,
-            'avg_daily_visitors': 320,
-            'avg_conversion_rate': 0.15
-        }
+        try:
+            from core.database import SupabaseManager
+            from core.config import settings
+            from datetime import datetime, timedelta
+
+            # Usar gerenciador do banco se disponível globalmente
+            supabase = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            await supabase.initialize()
+
+            # Buscar dados da última hora
+            last_hour = datetime.now() - timedelta(hours=1)
+            current_stats = await supabase.get_current_stats()
+            camera_stats = await supabase.get_camera_stats(hours=1)
+            conversion_data = await supabase.get_conversion_rate()
+
+            # Calcular métricas reais
+            last_hour_visitors = camera_stats.get('total_people', 0)
+            last_hour_sales = conversion_data.get('sales_count', 0)
+            avg_daily_visitors = camera_stats.get('total_people', 0) * 24  # Estimativa
+            avg_conversion_rate = conversion_data.get('conversion_rate', 0) / 100
+
+            return {
+                'last_hour_visitors': last_hour_visitors,
+                'last_hour_sales': last_hour_sales,
+                'avg_daily_visitors': avg_daily_visitors,
+                'avg_conversion_rate': avg_conversion_rate
+            }
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar dados históricos: {e}")
+            # Fallback para dados vazios em caso de erro
+            return {
+                'last_hour_visitors': 0,
+                'last_hour_sales': 0,
+                'avg_daily_visitors': 0,
+                'avg_conversion_rate': 0.0
+            }
     
     async def get_analytics_summary(self) -> Dict:
         """
